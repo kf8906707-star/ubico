@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UBICO Mundial 2026</title>
+    <title>Typer Mundial 2026</title>
     <style>
-        :root { --primary: #01c38d; --bg: #131927; --card: #1e2640; --text: #ffffff; }
+        :root { --primary: #01c38d; --bg: #131927; --card: #1e2640; --text: #ffffff; --danger: #ff4a4a; }
         body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
         .container { max-width: 600px; width: 100%; }
         h1, h2 { text-align: center; color: var(--primary); }
@@ -16,8 +16,12 @@
         button:hover { opacity: 0.9; }
         .hidden { display: none; }
         .match-row { display: flex; align-items: center; justify-content: space-between; margin: 15px 0; padding-bottom: 10px; border-bottom: 1px solid #2a3558; }
+        .match-info { display: flex; flex-direction: column; }
+        .match-date { font-size: 11px; color: #8a99ad; margin-top: 4px; }
+        .locked-text { color: var(--danger); font-weight: bold; }
         .score-inputs { display: flex; gap: 10px; }
         .score-inputs input { width: 50px; text-align: center; margin: 0; padding: 8px; background: #2a3558; color: white; border: none; border-radius: 4px; }
+        .score-inputs input:disabled { background: #131927; color: #6c7a9c; cursor: not-allowed; }
         .table-container { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; min-width: 400px; }
         th, td { padding: 10px; text-align: center; border-bottom: 1px solid #2a3558; font-size: 14px; }
@@ -39,9 +43,9 @@
         <div class="card">
             <h3>Cześć <span id="user-display" style="color:var(--primary)"></span>! Obstaw mecze:</h3>
             
-            <div id="matches-container">Ładowanie terminarza...</div>
+            <div id="matches-container">Ładowanie meczów...</div>
 
-            <button onclick="submitScores()" style="margin-top: 20px;">Zapisz moje typy</button>
+            <button onclick="submitScores()" style="margin-top: 20px;">🔒 Zapisz moje typy</button>
         </div>
 
         <div class="card">
@@ -58,16 +62,21 @@
 </div>
 
 <script>
-    // ⚠️ TUTAJ WKLEJ SWÓJ LINK Z SHEETDB
+    // ⚠️ TUTAJ WKLEJ SWÓJ LINK Z SHEETDB (BEZ ŻADNYCH SŁÓW "?sheet=...")
     const API_URL = "https://sheetdb.io/api/v1/p2i6amtlbbdei"; 
 
-    let activeMatches = [];
+    // 📅 OFICJALNY TERMINARZ — TUTAJ MOŻESZ DOPISYWAĆ KOLEJNE MECZE!
+    // Format daty blokady: RRRR-MM-DDTHH:MM:SS (czas polski)
+    const activeMatches = [
+        { id: "Mecz1", t1: "🇲🇽 MEK", t2: "🇿🇦 RPA", lock: "2026-06-11T18:00:00" },
+        { id: "Mecz2", t1: "🇨🇦 CAN", t2: "🇹🇬 TOG", lock: "2026-06-11T21:00:00" },
+        { id: "Mecz3", t1: "🇺🇸 USA", t2: "🇲🇦 MAR", lock: "2026-06-12T16:00:00" },
+        { id: "Mecz4", t1: "🇵🇱 POL", t2: "🇧🇷 BRA", lock: "2026-06-12T20:00:00" }
+    ];
 
     window.onload = function() {
         const savedNick = localStorage.getItem('typerNick');
-        if (savedNick) {
-            showApp(savedNick);
-        }
+        if (savedNick) { showApp(savedNick); }
     };
 
     function saveNick() {
@@ -77,115 +86,123 @@
         showApp(nick);
     }
 
-    async function showApp(nick) {
+    function showApp(nick) {
         document.getElementById('login-screen').classList.add('hidden');
         document.getElementById('app-screen').classList.remove('hidden');
         document.getElementById('user-display').innerText = nick;
-        await loadMatches();
+        renderMatches();
         loadAllScores();
     }
 
-    // Pobieranie meczów z zakładki "Mecze"
-    async function loadMatches() {
+    // Wyświetlanie meczów i sprawdzanie blokady czasu
+    function renderMatches() {
         const container = document.getElementById('matches-container');
-        try {
-            const response = await fetch(`${API_URL}?sheet=Mecze`);
-            activeMatches = await response.json();
+        container.innerHTML = "";
+        const now = new Date();
+
+        activeMatches.forEach(match => {
+            const lockTime = new Date(match.lock);
+            const isLocked = now >= lockTime;
+
+            const div = document.createElement('div');
+            div.className = "match-row";
+            div.setAttribute('data-id', match.id);
+            div.setAttribute('data-locked', isLocked);
             
-            container.innerHTML = "";
-            activeMatches.forEach(match => {
-                const div = document.createElement('div');
-                div.className = "match-row";
-                div.setAttribute('data-id', match.ID);
-                div.innerHTML = `
-                    <span>${match.Zespol1} - ${match.Zespol2}</span>
-                    <div class="score-inputs">
-                        <input type="number" class="home-team" min="0" placeholder="0">
-                        <input type="number" class="away-team" min="0" placeholder="0">
-                    </div>
-                `;
-                container.appendChild(div);
-            });
-        } catch (error) {
-            container.innerHTML = "Błąd ładowania meczów. Upewnij się, że masz w arkuszu zakładkę 'Mecze'.";
-        }
+            div.innerHTML = `
+                <div class="match-info">
+                    <span>${match.t1} - ${match.t2}</span>
+                    <span class="match-date">${isLocked ? '<span class="locked-text">🔒 ZABLOKOWANY</span>' : '⏰ Do: ' + match.lock.replace('T', ' ')}</span>
+                </div>
+                <div class="score-inputs">
+                    <input type="number" class="home-team" min="0" placeholder="-" ${isLocked ? 'disabled' : ''}>
+                    <span>:</span>
+                    <input type="number" class="away-team" min="0" placeholder="-" ${isLocked ? 'disabled' : ''}>
+                </div>
+            `;
+            container.appendChild(div);
+        });
     }
 
-    // Bezpieczne zapisywanie typów metodą POST
+    // Zapisywanie typów do bazy
     async function submitScores() {
         const nick = localStorage.getItem('typerNick');
         const rows = document.querySelectorAll('.match-row');
         
         const newRow = { "Gracz": nick };
-        let allFilled = true;
+        let hasNewData = false;
 
         rows.forEach(row => {
             const id = row.getAttribute('data-id');
-            const home = row.querySelector('.home-team').value;
-            const away = row.querySelector('.away-team').value;
+            const isLocked = row.getAttribute('data-locked') === "true";
             
-            if(home === "" || away === "") { allFilled = false; }
-            newRow[id] = `${home}:${away}`;
+            if (!isLocked) {
+                const home = row.querySelector('.home-team').value;
+                const away = row.querySelector('.away-team').value;
+                if (home !== "" && away !== "") {
+                    newRow[id] = `${home}:${away}`;
+                    hasNewData = true;
+                }
+            }
         });
 
-        if(!allFilled) return alert('Obstaw wszystkie mecze przed zapisem!');
+        if(!hasNewData) return alert('Wpisz wyniki dla odblokowanych meczów!');
 
         try {
-            await fetch(`${API_URL}?sheet=Gracze`, {
+            await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ data: [newRow] })
             });
-            alert('Typy zapisane pomyślnie!');
+            alert('Typy wysłane!');
             loadAllScores();
         } catch (error) {
-            alert('Błąd zapisu danych.');
+            alert('Błąd zapisu.');
         }
     }
 
-    // Ładowanie tabeli i odfiltrowanie dubli (zostawiamy tylko najnowszy wynik dla każdego nicku)
+    // Pobieranie danych i rysowanie tabeli (pokazuje tylko ostatni wpis każdego gracza)
     async function loadAllScores() {
         const thead = document.getElementById('table-head');
         const tbody = document.getElementById('table-body');
         
         try {
-            const response = await fetch(`${API_URL}?sheet=Gracze`);
+            const response = await fetch(API_URL);
             const data = await response.json();
             
-            // Nagłówki tabeli
+            // Nagłówki
             thead.innerHTML = "";
             const trHead = document.createElement('tr');
             trHead.innerHTML = "<th>Gracz</th>";
             activeMatches.forEach(m => {
-                trHead.innerHTML += `<th>${m.Zespol1} vs ${m.Zespol2}</th>`;
+                trHead.innerHTML += `<th>${m.t1.replace(/[^a-zA-Z]/g, '')}-${m.t2.replace(/[^a-zA-Z]/g, '')}</th>`;
             });
             thead.appendChild(trHead);
 
-            // Filtrowanie dubli (od tyłu listy, aby wziąć najnowszy wpis gracza)
+            // Filtrowanie, żeby zostawić tylko najnowszy wiersz gracza
             const uniquePlayers = {};
             for (let i = data.length - 1; i >= 0; i--) {
                 const row = data[i];
-                if (!uniquePlayers[row.Gracz]) {
+                if (row.Gracz && !uniquePlayers[row.Gracz]) {
                     uniquePlayers[row.Gracz] = row;
                 }
             }
 
-            // Renderowanie unikalnych graczy w tabeli
+            // Wypełnianie tabeli
             tbody.innerHTML = "";
             Object.values(uniquePlayers).forEach(row => {
                 const tr = document.createElement('tr');
                 let rowHtml = `<td style="font-weight:bold; color:#01c38d;">${row.Gracz}</td>`;
                 activeMatches.forEach(m => {
-                    rowHtml += `<td>${row[m.ID] || '-'}</td>`;
+                    rowHtml += `<td>${row[m.id] || '-'}</td>`;
                 });
                 tr.innerHTML = rowHtml;
                 tbody.appendChild(tr);
             });
         } catch (error) {
-            tbody.innerHTML = "<tr><td colspan='3'>Tabela ruszy po pierwszym zapisie wyników.</td></tr>";
+            tbody.innerHTML = "<tr><td colspan='5'>Brak danych lub błąd połączenia.</td></tr>";
         }
     }
 </script>
 </body>
 </html>
-
