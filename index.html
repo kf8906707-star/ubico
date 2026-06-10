@@ -107,10 +107,58 @@
         loadAllScores(); // Od razu ładujemy tabelę innych graczy
     }
 
-    // Wysyłanie typów do bazy danych
+      // Zapisywanie lub AKTUALIZOWANIE typów w zakładce "Gracze"
     async function submitScores() {
         const nick = localStorage.getItem('typerNick');
         const rows = document.querySelectorAll('.match-row');
+        
+        const newRow = { "Gracz": nick };
+        let allFilled = true;
+
+        rows.forEach(row => {
+            const id = row.getAttribute('data-id');
+            const isLocked = row.getAttribute('data-locked') === "true";
+            
+            if (!isLocked) {
+                const home = row.querySelector('.home-team').value;
+                const away = row.querySelector('.away-team').value;
+                if (home !== "" && away !== "") {
+                    newRow[id] = `${home}:${away}`;
+                } else {
+                    allFilled = false;
+                }
+            }
+        });
+
+        if(!allFilled) return alert('Obstaw wszystkie dostępne mecze przed zapisem!');
+
+        try {
+            // Najpierw sprawdzamy, czy gracz już jest w bazie, żeby go zaktualizować (PUT zamiast POST)
+            const checkRes = await fetch(`${API_URL}/Gracz/${nick}?sheet=Gracze`);
+            const checkData = await checkRes.json();
+
+            if (checkData && checkData.length > 0) {
+                // Jeśli gracz istnieje -> aktualizujemy jego wiersz
+                await fetch(`${API_URL}/Gracz/${nick}?sheet=Gracze`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ data: newRow })
+                });
+            } else {
+                // Jeśli gracza nie ma -> dodajemy nowy wiersz
+                await fetch(`${API_URL}?sheet=Gracze`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ data: [newRow] })
+                });
+            }
+            alert('Typy zostały pomyślnie zapisane i zaktualizowane!');
+            loadAllScores();
+        } catch (error) {
+            alert('Problem z zapisem. Upewnij się, że SheetDB pozwala na metody PATCH/DELETE.');
+        }
+    }
+
         
         // Zbieramy dane z pól tekstowych
         const m1_home = rows[0].querySelector('.home-team').value;
