@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Typer Mundial 2026</title>
+    <style>
+        :root { --primary: #01c38d; --bg: #131927; --card: #1e2640; --text: #ffffff; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .container { max-width: 600px; width: 100%; }
+        h1, h2 { text-align: center; color: var(--primary); }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); margin-bottom: 20px; }
+        input, button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 6px; border: none; box-sizing: border-box; }
+        input[type="text"] { background: #2a3558; color: white; font-size: 16px; }
+        button { background: var(--primary); color: var(--bg); font-weight: bold; cursor: pointer; font-size: 16px; }
+        button:hover { opacity: 0.9; }
+        .hidden { display: none; }
+        .match-row { display: flex; align-items: center; justify-content: space-between; margin: 15px 0; padding-bottom: 10px; border-bottom: 1px solid #2a3558; }
+        .score-inputs { display: flex; gap: 10px; }
+        .score-inputs input { width: 50px; text-align: center; margin: 0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 10px; text-align: center; border-bottom: 1px solid #2a3558; }
+        th { color: var(--primary); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🏆 TYPER MUNDIAL 2026 ⚽</h1>
+
+    <!-- 1. EKRAN LOGOWANIA (Tylko za pierwszym razem) -->
+    <div id="login-screen" class="card">
+        <h2>Podaj swój Nick:</h2>
+        <input type="text" id="nick-input" placeholder="np. Kicker99...">
+        <button onclick="saveNick()">Wejdź do gry</button>
+    </div>
+
+    <!-- 2. EKRAN TYPOWANIA -->
+    <div id="app-screen" class="hidden">
+        <div class="card">
+            <h3>Cześć <span id="user-display" style="color:var(--primary)"></span>! Obstawa najbliższe mecze:</h3>
+            
+            <!-- Mecz 1 -->
+            <div class="match-row" data-match="Mecz 1: USA vs Maroko">
+                <span>🇺🇸 USA - 🇲🇦 MAR</span>
+                <div class="score-inputs">
+                    <input type="number" class="home-team" min="0" placeholder="0">
+                    <input type="number" class="away-team" min="0" placeholder="0">
+                </div>
+            </div>
+
+            <!-- Mecz 2 -->
+            <div class="match-row" data-match="Mecz 2: Polska vs Brazylia">
+                <span>🇵🇱 POL - 🇧🇷 BRA</span>
+                <div class="score-inputs">
+                    <input type="number" class="home-team" min="0" placeholder="0">
+                    <input type="number" class="away-team" min="0" placeholder="0">
+                </div>
+            </div>
+
+            <button onclick="submitScores()">Zapisz moje typy</button>
+        </div>
+
+        <!-- 3. WSPÓLNA TABELA WYNIKÓW -->
+        <div class="card">
+            <h2>Typy wszystkich graczy</h2>
+            <button onclick="loadAllScores()" style="background:#2a3558; color:white; font-size:12px; padding:5px; margin-bottom:10px;">🔄 Odśwież tabelę</button>
+            <table id="global-table">
+                <thead>
+                    <tr>
+                        <th>Gracz</th>
+                        <th>USA - MAR</th>
+                        <th>POL - BRA</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                    <!-- Tutaj wpadną dane z bazy -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // URL do Twojej bazy SheetDB (wkleisz tu swój link po założeniu darmowego konta)
+    const API_URL = "https://sheetdb.io/api/v1/TWÓJ_INDYWIDUALNY_KOD"; 
+
+    // Sprawdzanie czy użytkownik jest już zapisany w pamięci przeglądarki
+    window.onload = function() {
+        const savedNick = localStorage.getItem('typerNick');
+        if (savedNick) {
+            showApp(savedNick);
+        }
+    };
+
+    function saveNick() {
+        const nick = document.getElementById('nick-input').value.trim();
+        if (nick.length < 3) return alert('Nick musi mieć min. 3 znaki!');
+        localStorage.setItem('typerNick', nick);
+        showApp(nick);
+    }
+
+    function showApp(nick) {
+        document.getElementById('login-screen').classList.add('hidden');
+        document.getElementById('app-screen').classList.remove('hidden');
+        document.getElementById('user-display').innerText = nick;
+        loadAllScores(); // Od razu ładujemy tabelę innych graczy
+    }
+
+    // Wysyłanie typów do bazy danych
+    async function submitScores() {
+        const nick = localStorage.getItem('typerNick');
+        const rows = document.querySelectorAll('.match-row');
+        
+        // Zbieramy dane z pól tekstowych
+        const m1_home = rows[0].querySelector('.home-team').value;
+        const m1_away = rows[0].querySelector('.away-team').value;
+        const m2_home = rows[1].querySelector('.home-team').value;
+        const m2_away = rows[1].querySelector('.away-team').value;
+
+        if(!m1_home || !m1_away || !m2_home || !m2_away) {
+            return alert('Obstaw wszystkie mecze przed zapisem!');
+        }
+
+        const payload = {
+            data: [{
+                "Gracz": nick,
+                "Mecz1": `${m1_home}:${m1_away}`,
+                "Mecz2": `${m2_home}:${m2_away}`
+            }]
+        };
+
+        // Wysyłamy do Arkusza Google przez API SheetDB
+        try {
+            await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            alert('Typy zapisane pomyślnie!');
+            loadAllScores(); // Odświeżamy tabelę dla wszystkich
+        } catch (error) {
+            alert('Błąd zapisu. Sprawdź konfigurację API_URL.');
+        }
+    }
+
+    // Pobieranie typów wszystkich ludzi z bazy i wyświetlanie w tabeli
+    async function loadAllScores() {
+        const tbody = document.getElementById('table-body');
+        tbody.innerHTML = "<tr><td colspan='3'>Ładowanie typów ekipy...</td></tr>";
+        
+        try {
+            const response = await fetch(API_URL);
+            const data = await response.json();
+            
+            tbody.innerHTML = ""; // Czyścimy loader
+            
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="font-weight:bold; color:#01c38d;">${row.Gracz}</td>
+                    <td>${row.Mecz1}</td>
+                    <td>${row.Mecz2}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } catch (error) {
+            tbody.innerHTML = "<tr><td colspan='3'>Nie udało się pobrać danych. Upewnij się, że dodałeś poprawny link API.</td></tr>";
+        }
+    }
+</script>
+</body>
+</html>
