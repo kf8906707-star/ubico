@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Typer Mundial 2026</title>
+    <title>Oficjalny Typer Mundial 2026</title>
     <style>
         :root { --primary: #01c38d; --bg: #131927; --card: #1e2640; --text: #ffffff; --danger: #ff4a4a; }
         body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
         .container { max-width: 600px; width: 100%; }
-        h1, h2 { text-align: center; color: var(--primary); }
+        h1, h2 { text-align: center; color: var(--primary); margin-bottom: 5px; }
+        .group-header { text-align: center; background: var(--primary); color: var(--bg); font-weight: bold; padding: 8px; border-radius: 6px; margin-bottom: 15px; font-size: 18px; }
         .card { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); margin-bottom: 20px; }
         input, button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 6px; border: none; box-sizing: border-box; }
         input[type="text"] { background: #2a3558; color: white; font-size: 16px; }
@@ -16,16 +17,16 @@
         button:hover { opacity: 0.9; }
         .hidden { display: none; }
         .match-row { display: flex; align-items: center; justify-content: space-between; margin: 15px 0; padding-bottom: 10px; border-bottom: 1px solid #2a3558; }
-        .match-info { display: flex; flex-direction: column; }
+        .match-info { display: flex; flex-direction: column; width: 65%; }
         .match-date { font-size: 11px; color: #8a99ad; margin-top: 4px; }
         .locked-text { color: var(--danger); font-weight: bold; }
-        .score-inputs { display: flex; gap: 10px; }
-        .score-inputs input { width: 50px; text-align: center; margin: 0; padding: 8px; background: #2a3558; color: white; border: none; border-radius: 4px; }
+        .score-inputs { display: flex; gap: 10px; align-items: center; }
+        .score-inputs input { width: 45px; text-align: center; margin: 0; padding: 8px; background: #2a3558; color: white; border: none; border-radius: 4px; font-size: 16px; }
         .score-inputs input:disabled { background: #131927; color: #6c7a9c; cursor: not-allowed; }
         .table-container { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; min-width: 400px; }
-        th, td { padding: 10px; text-align: center; border-bottom: 1px solid #2a3558; font-size: 14px; }
-        th { color: var(--primary); }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; min-width: 600px; }
+        th, td { padding: 10px; text-align: center; border-bottom: 1px solid #2a3558; font-size: 11px; }
+        th { color: var(--primary); background: #1a2238; font-size: 10px; }
     </style>
 </head>
 <body>
@@ -34,23 +35,24 @@
     <h1>🏆 TYPER MUNDIAL 2026 ⚽</h1>
 
     <div id="login-screen" class="card">
-        <h2>Podaj swój Nick:</h2>
+        <h2>Wpisz swój Nick do tabeli:</h2>
         <input type="text" id="nick-input" placeholder="np. Fabby...">
-        <button onclick="saveNick()">Wejdź do gry</button>
+        <button onclick="saveNick()">Rozpocznij typowanie</button>
     </div>
 
     <div id="app-screen" class="hidden">
         <div class="card">
-            <h3>Cześć <span id="user-display" style="color:var(--primary)"></span>! Obstaw mecze:</h3>
+            <div id="current-group-title" class="group-header">GRUPA A</div>
+            <h3>Cześć <span id="user-display" style="color:var(--primary)"></span>! Obstaw mecze tej grupy:</h3>
             
-            <div id="matches-container">Ładowanie meczów...</div>
+            <div id="matches-container">Ładowanie terminarza FIFA...</div>
 
-            <button onclick="submitScores()" style="margin-top: 20px;">🔒 Zapisz moje typy</button>
+            <button id="submit-btn" onclick="submitGroupScores()" style="margin-top: 20px;">💾 Zapisz grupę i przejdź dalej</button>
         </div>
 
         <div class="card">
-            <h2>Typy wszystkich graczy</h2>
-            <button onclick="loadAllScores()" style="background:#2a3558; color:white; font-size:12px; padding:5px; margin-bottom:10px; width:auto;">🔄 Odśwież tabelę</button>
+            <h2>Aktualna Tabela Typów</h2>
+            <button onclick="loadAllScores()" style="background:#2a3558; color:white; font-size:12px; padding:6px; margin-bottom:10px; width:auto;">🔄 Odśwież tabelę</button>
             <div class="table-container">
                 <table id="global-table">
                     <thead id="table-head"></thead>
@@ -62,16 +64,33 @@
 </div>
 
 <script>
-    // ⚠️ TUTAJ WKLEJ SWÓJ LINK Z SHEETDB (BEZ ŻADNYCH SŁÓW "?sheet=...")
-    const API_URL = "https://sheetdb.io/api/v1/p2i6amtlbbdei"; 
+    // ⚠️ TUTAJ WKLEJ SWÓJ LINK Z SHEETDB
+    const API_URL = "https://sheetdb.io/api/v1/TWÓJ_INDYWIDUALNY_KOD"; 
 
-    // 📅 OFICJALNY TERMINARZ — TUTAJ MOŻESZ DOPISYWAĆ KOLEJNE MECZE!
-    // Format daty blokady: RRRR-MM-DDTHH:MM:SS (czas polski)
-    const activeMatches = [
-        { id: "Mecz1", t1: "🇲🇽 MEK", t2: "🇿🇦 RPA", lock: "2026-06-11T18:00:00" },
-        { id: "Mecz2", t1: "🇨🇦 CAN", t2: "🇹🇬 TOG", lock: "2026-06-11T21:00:00" },
-        { id: "Mecz3", t1: "🇺🇸 USA", t2: "🇲🇦 MAR", lock: "2026-06-12T16:00:00" },
-        { id: "Mecz4", t1: "🇵🇱 POL", t2: "🇧🇷 BRA", lock: "2026-06-12T20:00:00" }
+    const groups = ["A", "B", "C", "D"];
+    let currentGroupIndex = 0;
+
+    // 📅 OFICJALNY, SPRAWDZONY TERMINARZ (Mecze 1-12)
+    const allMatches = [
+        // GRUPA A
+        { id: "Mecz1", group: "A", t1: "🇲🇽 Meksyk", t2: "🇿🇦 RPA", lock: "2026-06-11T21:00:00" },
+        { id: "Mecz2", group: "A", t1: "🇰🇷 Korea Płd.", t2: "🇨🇿 Czechy", lock: "2026-06-12T04:00:00" },
+        { id: "Mecz3", group: "A", t1: "🇨🇿 Czechy", t2: "🇿🇦 RPA", lock: "2026-06-18T18:00:00" },
+        { id: "Mecz4", group: "A", t1: "🇲🇽 Meksyk", t2: "🇰🇷 Korea Płd.", lock: "2026-06-19T03:00:00" },
+        
+        // GRUPA B
+        { id: "Mecz5", group: "B", t1: "🇨🇦 Kanada", t2: "🇧🇦 Bośnia i Herc.", lock: "2026-06-12T21:00:00" },
+        { id: "Mecz6", group: "B", t1: "🇶🇦 Katar", t2: "🇨🇭 Szwajcaria", lock: "2026-06-13T21:00:00" },
+        { id: "Mecz7", group: "B", t1: "🇨🇭 Szwajcaria", t2: "🇧🇦 Bośnia i Herc.", lock: "2026-06-18T21:00:00" },
+        { id: "Mecz8", group: "B", t1: "🇨🇦 Kanada", t2: "🇶🇦 Katar", lock: "2026-06-19T00:00:00" },
+        
+        // GRUPA C
+        { id: "Mecz9", group: "C", t1: "🇧🇷 Brazylia", t2: "🇲🇦 Maroko", lock: "2026-06-14T00:00:00" },
+        { id: "Mecz10", group: "C", t1: "🇭🇹 Haiti", t2: "🏴󠁧󠁢󠁳 Scotland", lock: "2026-06-14T03:00:00" },
+        
+        // GRUPA D
+        { id: "Mecz11", group: "D", t1: "🇺🇸 USA", t2: "🇵🇾 Paragwaj", lock: "2026-06-13T03:00:00" },
+        { id: "Mecz12", group: "D", t1: "🇦🇺 Australia", t2: "🇹🇷 Turcja", lock: "2026-06-14T06:00:00" }
     ];
 
     window.onload = function() {
@@ -90,17 +109,21 @@
         document.getElementById('login-screen').classList.add('hidden');
         document.getElementById('app-screen').classList.remove('hidden');
         document.getElementById('user-display').innerText = nick;
-        renderMatches();
+        renderCurrentGroup();
         loadAllScores();
     }
 
-    // Wyświetlanie meczów i sprawdzanie blokady czasu
-    function renderMatches() {
+    function renderCurrentGroup() {
+        const currentGroup = groups[currentGroupIndex];
+        document.getElementById('current-group-title').innerText = `GRUPA ${currentGroup}`;
+        
         const container = document.getElementById('matches-container');
         container.innerHTML = "";
+        
         const now = new Date();
+        const filteredMatches = allMatches.filter(m => m.group === currentGroup);
 
-        activeMatches.forEach(match => {
+        filteredMatches.forEach(match => {
             const lockTime = new Date(match.lock);
             const isLocked = now >= lockTime;
 
@@ -112,7 +135,7 @@
             div.innerHTML = `
                 <div class="match-info">
                     <span>${match.t1} - ${match.t2}</span>
-                    <span class="match-date">${isLocked ? '<span class="locked-text">🔒 ZABLOKOWANY</span>' : '⏰ Do: ' + match.lock.replace('T', ' ')}</span>
+                    <span class="match-date">${isLocked ? '<span class="locked-text">🔒 ZABLOKOWANY</span>' : '⏰ Start PL: ' + match.lock.replace('T', ' ')}</span>
                 </div>
                 <div class="score-inputs">
                     <input type="number" class="home-team" min="0" placeholder="-" ${isLocked ? 'disabled' : ''}>
@@ -122,10 +145,16 @@
             `;
             container.appendChild(div);
         });
+
+        const btn = document.getElementById('submit-btn');
+        if (currentGroupIndex === groups.length - 1) {
+            btn.innerText = "🏁 Zakończ i wyślij wszystkie typy";
+        } else {
+            btn.innerText = `💾 Zapisz Grupę ${currentGroup} i przejdź do kolejnej`;
+        }
     }
 
-    // Zapisywanie typów do bazy
-    async function submitScores() {
+    async function submitGroupScores() {
         const nick = localStorage.getItem('typerNick');
         const rows = document.querySelectorAll('.match-row');
         
@@ -146,7 +175,7 @@
             }
         });
 
-        if(!hasNewData) return alert('Wpisz wyniki dla odblokowanych meczów!');
+        if(!hasNewData) return alert('Wpisz wyniki przed przejściem dalej!');
 
         try {
             await fetch(API_URL, {
@@ -154,14 +183,25 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ data: [newRow] })
             });
-            alert('Typy wysłane!');
-            loadAllScores();
+            
+            alert(`Grupa ${groups[currentGroupIndex]} zapisana!`);
+
+            if (currentGroupIndex < groups.length - 1) {
+                currentGroupIndex++;
+                renderCurrentGroup();
+                loadAllScores();
+                window.scrollTo(0, 0);
+            } else {
+                alert('Wszystkie dostępne grupy zostały obstawione! Powodzenia! 🎉');
+                currentGroupIndex = 0;
+                renderCurrentGroup();
+                loadAllScores();
+            }
         } catch (error) {
-            alert('Błąd zapisu.');
+            alert('Błąd połączenia podczas zapisu.');
         }
     }
 
-    // Pobieranie danych i rysowanie tabeli (pokazuje tylko ostatni wpis każdego gracza)
     async function loadAllScores() {
         const thead = document.getElementById('table-head');
         const tbody = document.getElementById('table-body');
@@ -170,39 +210,44 @@
             const response = await fetch(API_URL);
             const data = await response.json();
             
-            // Nagłówki
             thead.innerHTML = "";
             const trHead = document.createElement('tr');
             trHead.innerHTML = "<th>Gracz</th>";
-            activeMatches.forEach(m => {
-                trHead.innerHTML += `<th>${m.t1.replace(/[^a-zA-Z]/g, '')}-${m.t2.replace(/[^a-zA-Z]/g, '')}</th>`;
+            allMatches.forEach(m => {
+                const name1 = m.t1.replace(/[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]/g, '').trim().substring(0,3).toUpperCase();
+                const name2 = m.t2.replace(/[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]/g, '').trim().substring(0,3).toUpperCase();
+                trHead.innerHTML += `<th>${name1}-${name2}</th>`;
             });
             thead.appendChild(trHead);
 
-            // Filtrowanie, żeby zostawić tylko najnowszy wiersz gracza
-            const uniquePlayers = {};
-            for (let i = data.length - 1; i >= 0; i--) {
-                const row = data[i];
-                if (row.Gracz && !uniquePlayers[row.Gracz]) {
-                    uniquePlayers[row.Gracz] = row;
+            const mergedPlayers = {};
+            data.forEach(row => {
+                if (!row.Gracz) return;
+                if (!mergedPlayers[row.Gracz]) {
+                    mergedPlayers[row.Gracz] = { "Gracz": row.Gracz };
                 }
-            }
+                allMatches.forEach(m => {
+                    if (row[m.id]) {
+                        mergedPlayers[row.Gracz][m.id] = row[m.id];
+                    }
+                });
+            });
 
-            // Wypełnianie tabeli
             tbody.innerHTML = "";
-            Object.values(uniquePlayers).forEach(row => {
+            Object.values(mergedPlayers).forEach(player => {
                 const tr = document.createElement('tr');
-                let rowHtml = `<td style="font-weight:bold; color:#01c38d;">${row.Gracz}</td>`;
-                activeMatches.forEach(m => {
-                    rowHtml += `<td>${row[m.id] || '-'}</td>`;
+                let rowHtml = `<td style="font-weight:bold; color:#01c38d;">${player.Gracz}</td>`;
+                allMatches.forEach(m => {
+                    rowHtml += `<td>${player[m.id] || '-'}</td>`;
                 });
                 tr.innerHTML = rowHtml;
                 tbody.appendChild(tr);
             });
         } catch (error) {
-            tbody.innerHTML = "<tr><td colspan='5'>Brak danych lub błąd połączenia.</td></tr>";
+            tbody.innerHTML = "<tr><td colspan='13'>Oczekiwanie na pierwsze zapisy...</td></tr>";
         }
     }
 </script>
 </body>
 </html>
+
