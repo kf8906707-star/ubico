@@ -17,7 +17,7 @@
         .group-header-active { background: #1a2238; color: var(--primary); font-weight: bold; padding: 12px; border-radius: 6px; margin: 15px 0; text-align: center; font-size: 18px; border: 2px solid var(--primary); }
         .card { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); margin-bottom: 20px; box-sizing: border-box; }
         input, button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 6px; border: none; box-sizing: border-box; }
-        input[type="text"] { background: #2a3558; color: white; font-size: 16px; }
+        input[type="text"], input[type="password"] { background: #2a3558; color: white; font-size: 16px; }
         button { background: var(--primary); color: var(--bg); font-weight: bold; cursor: pointer; font-size: 16px; }
         button:disabled { background: #4a5568; color: #a0aec0; cursor: not-allowed; box-shadow: none !important; }
         button:hover:not(:disabled) { opacity: 0.9; }
@@ -38,15 +38,13 @@
         th { color: var(--primary); background: #1a2238; font-weight: 600; vertical-align: middle; }
         .th-match-header { font-size: 11px; font-weight: bold; color: white; white-space: nowrap; min-width: 90px; text-align: center; letter-spacing: 0.5px; display: flex; align-items: center; justify-content: center; gap: 4px; }
         
-        /* STYLE DLA PODŚWIETLANIA W TABELI */
         .cell-exact { background-color: #028a5a !important; color: white !important; font-weight: bold; } 
         .cell-trend { background-color: #b8860b !important; color: white !important; font-weight: bold; } 
         .cell-miss { background-color: #8b0000 !important; color: #ffcccc !important; } 
 
-        /* STYLE DLA KLASYFIKACJI GENERALNEJ */
         .leaderboard-table { min-width: 100% !important; }
         .leaderboard-table th, .leaderboard-table td { padding: 10px; font-size: 14px; }
-        .leaderboard-row:nth-child(1) { background: rgba(255, 215, 0, 0.15); } /* Złoty akcent dla lidera */
+        .leaderboard-row:nth-child(1) { background: rgba(255, 215, 0, 0.15); } 
         .rank-badge { font-weight: bold; display: inline-block; width: 24px; height: 24px; line-height: 24px; border-radius: 50%; background: #2a3558; color: white; text-align: center; font-size: 12px; }
         .leaderboard-row:nth-child(1) .rank-badge { background: #ffd700; color: #131927; }
         .leaderboard-row:nth-child(2) .rank-badge { background: #c0c0c0; color: #131927; }
@@ -93,10 +91,18 @@
 
     <h1>🏆 UBICO MUNDIAL 2026 ⚽</h1>
 
+    <!-- EKRAN LOGOWANIA / REJESTRACJI -->
     <div id="login-screen" class="card">
-        <h2>Wpisz swój Nick, aby wejść:</h2>
+        <h2>Wpisz swój Nick, aby weść:</h2>
         <input type="text" id="nick-input" placeholder="np. Fabby...">
-        <button onclick="saveNick()">Rozpocznij typowanie</button>
+        
+        <!-- Sekcja kodu PIN (początkowo ukryta, pojawia się po sprawdzeniu Nicku) -->
+        <div id="pin-section" class="hidden" style="margin-top: 15px; border-top: 1px solid #2a3558; padding-top: 15px;">
+            <p id="pin-instruction" style="margin: 0 0 10px 0; font-size: 14px; color: #8a99ad; text-align: center;"></p>
+            <input type="password" id="pin-input" maxlength="4" placeholder="4-cyfrowy PIN" style="text-align: center; letter-spacing: 5px; font-size: 20px;">
+        </div>
+
+        <button id="login-btn" onclick="checkNickAndProgress()">Dalej</button>
     </div>
 
     <div id="app-screen" class="hidden">
@@ -114,7 +120,19 @@
             </button>
         </div>
 
-        <!-- SEKCJA 2: NOWOŚĆ — KLASYFIKACJA GENERALNA (LEADERBOARD) -->
+        <!-- SEKCJA 2: TABELA Z WYNIKAMI SZCZEGÓŁOWYMI -->
+        <div class="card">
+            <h2>📊 Szczegółowe Typy Graczy (Faza Grupowa)</h2>
+            <button onclick="loadAllScores()" style="background:#2a3558; color:white; font-size:12px; padding:6px; margin-bottom:10px; width:auto;">🔄 Odśwież tabelę i punkty</button>
+            <div class="table-container">
+                <table id="global-table">
+                    <thead id="table-head"></thead>
+                    <tbody id="table-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- SEKCJA 3: KLASYFIKACJA GENERALNA -->
         <div class="card">
             <h2>🏆 Klasyfikacja Generalna UBICO</h2>
             <div class="table-container">
@@ -132,18 +150,6 @@
                 </table>
             </div>
         </div>
-
-        <!-- SEKCJA 3: TABELA Z WYNIKAMI SZCZEGÓŁOWYMI -->
-        <div class="card">
-            <h2>📊 Szczegółowe Typy Graczy (Faza Grupowa)</h2>
-            <button onclick="loadAllScores()" style="background:#2a3558; color:white; font-size:12px; padding:6px; margin-bottom:10px; width:auto;">🔄 Odśwież tabelę i punkty</button>
-            <div class="table-container">
-                <table id="global-table">
-                    <thead id="table-head"></thead>
-                    <tbody id="table-body"></tbody>
-                </table>
-            </div>
-        </div>
     </div>
 </div>
 
@@ -154,11 +160,12 @@
     const groupsOrder = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
     let currentGroupIndex = 0; 
     let localDraftScores = {}; 
+    let userPin = ""; // Przechowuje aktualnie autoryzowany PIN użytkownika
 
     const teamFlags = {
         "Meksyk": "🇲🇽", "RPA": "🇿🇦", "Korea Płd.": "🇰🇷", "Czechy": "🇨🇿",
         "Kanada": "🇨🇦", "Bośnia i Herc.": "🇧🇦", "Katar": "🇶🇦", "Szwajcaria": "🇨🇭",
-        "Brazylia": "🇧🇷", "Maroko": "🇲🇦", "Haiti": "🇭🇹", "Szkocja": "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
+        "Brazylia": "🇧🇷", "Maroko": "🇲🇦", "Haiti": "🇭🇹", "Szkocja": "🏴󠁧󠁢󠁳κούς",
         "USA": "🇺🇸", "Paragwaj": "🇵🇾", "Australia": "🇦🇺", "Turcja": "🇹🇷",
         "Niemcy": "🇩🇪", "Curacao": "🇨🇼", "WKS": "🇨🇮", "Ekwador": "🇪🇨",
         "Holandia": "🇳🇱", "Japonia": "🇯🇵", "Szwecja": "🇸🇪", "Tunezja": "🇹🇳",
@@ -170,7 +177,6 @@
         "Anglia": "🏴󠁧󠁢󠁥󠁮󠁧󠁿", "Chorwacja": "🇭🇷", "Ghana": "🇬🇭", "Panama": "🇵🇦"
     };
 
-    // Oficjalne wyniki (Do celów testowych wpisałem wynik Mecz1 i Mecz2)
     const allMatches = [
         // GRUPA A
         { id: "Mecz1", group: "A", t1: "Meksyk", t2: "RPA", lock: "2026-06-11T21:00:00", score: "2:1" }, 
@@ -266,18 +272,97 @@
 
     window.onload = function() {
         const savedNick = localStorage.getItem('typerNick');
-        if (savedNick) { showApp(savedNick); }
+        const savedPin = localStorage.getItem('typerPin');
+        if (savedNick && savedPin) { 
+            userPin = savedPin;
+            showApp(savedNick); 
+        } else {
+            loadAllScores(); // Załaduj tabele na dole, nawet gdy nikt nie jest zalogowany
+        }
     };
 
-    function saveNick() {
-        const nick = document.getElementById('nick-input').value.trim();
+    let existingDatabaseRows = []; 
+    let checkState = "NICK_INPUT"; // Flagi stanu logowania: NICK_INPUT, PIN_VERIFY, PIN_CREATE
+
+    async function checkNickAndProgress() {
+        const nickInput = document.getElementById('nick-input');
+        const nick = nickInput.value.trim();
+        const pinInput = document.getElementById('pin-input');
+        const pin = pinInput.value.trim();
+
         if (nick.length < 3) return alert('Nick musi mieć min. 3 znaki!');
-        localStorage.setItem('typerNick', nick);
-        showApp(nick);
+
+        const loginBtn = document.getElementById('login-btn');
+        loginBtn.disabled = true;
+        loginBtn.innerText = "Sprawdzanie...";
+
+        try {
+            const res = await fetch(API_URL);
+            const json = await res.json();
+            existingDatabaseRows = json[KEY_NAME] || [];
+        } catch (e) {
+            alert("Błąd połączenia z bazą danych.");
+            loginBtn.disabled = false;
+            loginBtn.innerText = "Dalej";
+            return;
+        }
+
+        const userRow = existingDatabaseRows.find(r => r.gracz && r.gracz.toLowerCase() === nick.toLowerCase());
+
+        if (checkState === "NICK_INPUT") {
+            nickInput.disabled = true;
+            document.getElementById('pin-section').classList.remove('hidden');
+
+            if (userRow) {
+                // Gracz istnieje - musimy sprawdzić jego PIN
+                checkState = "PIN_VERIFY";
+                document.getElementById('pin-instruction').innerText = "Ten nick jest zajęty. Podaj swój 4-cyfrowy PIN, aby wejść:";
+                loginBtn.innerText = "Zaloguj się";
+            } else {
+                // Nowy gracz - musi wymyślić PIN
+                checkState = "PIN_CREATE";
+                document.getElementById('pin-instruction').innerText = "Twój pierwszy raz? Wymyśl swój 4-cyfrowy kod PIN:";
+                loginBtn.innerText = "Zapisz PIN i wejdź";
+            }
+            loginBtn.disabled = false;
+            pinInput.focus();
+            return;
+        }
+
+        if (pin.length !== 4 || isNaN(pin)) {
+            alert("PIN musi składać się dokładnie z 4 cyfr!");
+            loginBtn.disabled = false;
+            loginBtn.innerText = checkState === "PIN_VERIFY" ? "Zaloguj się" : "Zapisz PIN i wejdź";
+            return;
+        }
+
+        if (checkState === "PIN_VERIFY") {
+            const dbPin = String(userRow.pin || "").trim();
+            if (dbPin !== pin) {
+                alert("❌ Nieprawidłowy kod PIN! Ktoś próbuje się podszyć?");
+                loginBtn.disabled = false;
+                loginBtn.innerText = "Zaloguj się";
+                return;
+            }
+            // Zalogowano pomyślnie
+            userPin = pin;
+            localStorage.setItem('typerNick', userRow.gracz); // Bierzemy oryginalną wielkość liter z bazy
+            localStorage.setItem('typerPin', pin);
+            showApp(userRow.gracz);
+        } 
+        
+        else if (checkState === "PIN_CREATE") {
+            // Zgadzamy się na wejście, PIN zostanie wysłany do bazy przy pierwszym zapisie grupy
+            userPin = pin;
+            localStorage.setItem('typerNick', nick);
+            localStorage.setItem('typerPin', pin);
+            showApp(nick);
+        }
     }
 
     function logout() {
         localStorage.removeItem('typerNick');
+        localStorage.removeItem('typerPin');
         location.reload();
     }
 
@@ -286,34 +371,25 @@
         document.getElementById('app-screen').classList.remove('hidden');
         document.getElementById('user-display').innerText = nick;
         
-        await fetchUserExistingScores(nick);
+        fillLocalDraftFromDatabase(nick);
 
         renderProgressBar();
         renderActiveGroup();
         loadAllScores();
     }
 
-    async function fetchUserExistingScores(nick) {
-        try {
-            const res = await fetch(API_URL);
-            const json = await res.json();
-            const existingRows = json[KEY_NAME] || [];
-            
-            const userRow = existingRows.find(r => r.gracz && r.gracz.toLowerCase() === nick.toLowerCase());
-            
-            if (userRow) {
-                allMatches.forEach(m => {
-                    const matchKey = m.id.toLowerCase();
-                    const score = userRow[matchKey]; 
-                    if (score && score.includes(":")) {
-                        const parts = score.split(":");
-                        localDraftScores[`home-${m.id}`] = parts[0].trim();
-                        localDraftScores[`away-${m.id}`] = parts[1].trim();
-                    }
-                });
-            }
-        } catch (e) {
-            console.error(e);
+    function fillLocalDraftFromDatabase(nick) {
+        const userRow = existingDatabaseRows.find(r => r.gracz && r.gracz.toLowerCase() === nick.toLowerCase());
+        if (userRow) {
+            allMatches.forEach(m => {
+                const matchKey = m.id.toLowerCase();
+                const score = userRow[matchKey]; 
+                if (score && score.includes(":")) {
+                    const parts = score.split(":");
+                    localDraftScores[`home-${m.id}`] = parts[0].trim();
+                    localDraftScores[`away-${m.id}`] = parts[1].trim();
+                }
+            });
         }
     }
 
@@ -446,7 +522,11 @@
         const nick = localStorage.getItem('typerNick');
         const rows = document.querySelectorAll('.match-row');
         
-        const updateData = {};
+        // Budujemy obiekt danych do wysłania. Zawsze dołączamy PIN dla bezpieczeństwa.
+        const updateData = {
+            pin: userPin
+        };
+
         rows.forEach(row => {
             const id = row.getAttribute('data-id');
             const isLocked = row.getAttribute('data-locked') === "true";
@@ -464,6 +544,14 @@
             const userRow = existingRows.find(r => r.gracz && r.gracz.toLowerCase() === nick.toLowerCase());
 
             if (userRow) {
+                // DODATKOWE ZABEZPIECZENIE OD STRONY SKRYPTU:
+                // Sprawdzamy czy PIN wysyłany zgadza się z tym w bazie przed wysłaniem PUT
+                if (String(userRow.pin).trim() !== String(userPin).trim()) {
+                    alert("❌ Błąd autoryzacji! Wykryto niezgodność kodu PIN.");
+                    logout();
+                    return;
+                }
+
                 const wrapper = {}; wrapper[KEY_NAME] = updateData;
                 await fetch(`${API_URL}/${userRow.id}`, {
                     method: 'PUT',
@@ -495,14 +583,13 @@
         }
     }
 
-    // SYSTEM MATEMATYCZNEGO WYLICZANIA PUNKTÓW I KOLORÓW
     function evaluatePrediction(playerPrediction, officialResult) {
         if (!officialResult || officialResult === "" || !playerPrediction || playerPrediction === "-" || !playerPrediction.includes(":")) {
             return { points: 0, cssClass: "", type: "none" }; 
         }
 
         if (playerPrediction.trim() === officialResult.trim()) {
-            return { points: 45, cssClass: "cell-exact", type: "exact" }; // Dokładny wynik = 45pkt (Zielony)
+            return { points: 45, cssClass: "cell-exact", type: "exact" }; 
         }
 
         const [pHome, pAway] = playerPrediction.split(":").map(Number);
@@ -512,10 +599,10 @@
         const officialTrend = oHome > oAway ? 1 : (oHome < oAway ? -1 : 0);
 
         if (playerTrend === officialTrend) {
-            return { points: 30, cssClass: "cell-trend", type: "trend" }; // Trafiony trend = 30pkt (Żółty)
+            return { points: 30, cssClass: "cell-trend", type: "trend" }; 
         }
 
-        return { points: 0, cssClass: "cell-miss", type: "miss" }; // Pudło = 0pkt (Czerwony)
+        return { points: 0, cssClass: "cell-miss", type: "miss" }; 
     }
 
     async function loadAllScores() {
@@ -528,7 +615,6 @@
             const data = await response.json();
             const existingRows = data[KEY_NAME] || [];
             
-            // 1. GENEROWANIE NAGŁÓWKA TABELI SZCZEGÓŁOWEJ
             thead.innerHTML = "";
             const trHead = document.createElement('tr');
             trHead.innerHTML = "<th style='position:sticky; left:0; background:#1a2238; z-index:3;'>Gracz</th>";
@@ -548,10 +634,8 @@
             });
             thead.appendChild(trHead);
 
-            // Tablica obiektów do stworzenia Rankingu Generalnego
             let playersLeaderboard = [];
 
-            // 2. GENEROWANIE WIERSZY DLA GRACZY I LICZENIE PUNKTÓW
             tbody.innerHTML = "";
             if (!Array.isArray(existingRows) || existingRows.length === 0) {
                 tbody.innerHTML = "<tr><td colspan='73'>Brak wpisów w bazie danych.</td></tr>";
@@ -573,7 +657,6 @@
                     const matchKey = m.id.toLowerCase();
                     const playerPrediction = row[matchKey] || '-';
                     
-                    // Wyliczamy punkty i kolor dla konkretnej komórki
                     const evaluation = evaluatePrediction(playerPrediction, m.score);
                     
                     totalPoints += evaluation.points;
@@ -586,7 +669,6 @@
                 tr.innerHTML = rowHtml;
                 tbody.appendChild(tr);
 
-                // Zapisujemy podsumowanie punktowe gracza na potrzeby rankingu
                 playersLeaderboard.push({
                     name: row.gracz,
                     points: totalPoints,
@@ -595,7 +677,6 @@
                 });
             });
 
-            // 3. DYNAMICZNE SORTOWANIE RANKINGU (Punkty desc, potem dokładne trafienia desc)
             playersLeaderboard.sort((a, b) => {
                 if (b.points !== a.points) {
                     return b.points - a.points; 
@@ -603,7 +684,6 @@
                 return b.exacts - a.exacts; 
             });
 
-            // 4. WYŚWIETLENIE RANKINGU W SEKCJI "Klasyfikacja Generalna"
             leaderboardBody.innerHTML = "";
             playersLeaderboard.forEach((player, index) => {
                 const trRank = document.createElement('tr');
