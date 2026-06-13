@@ -28,7 +28,7 @@
         /* Ekran ładowania (Loader) */
         #loading-screen { text-align: center; padding: 40px 20px; }
         .spinner { border: 4px solid rgba(255,255,255,0.1); width: 42px; height: 42px; border-radius: 50%; border-left-color: var(--primary); animation: spin 1s linear infinite; margin: 20px auto; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes spin { 0+ { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
         .match-row { display: flex; align-items: center; justify-content: space-between; margin: 12px 0; padding-bottom: 8px; border-bottom: 1px solid #2a3558; }
         .match-info { display: flex; flex-direction: column; width: 65%; }
@@ -39,6 +39,14 @@
         .score-inputs { display: flex; gap: 8px; align-items: center; }
         .score-inputs input { width: 42px; text-align: center; margin: 0; padding: 6px; background: #2a3558; color: white; border: none; border-radius: 4px; font-size: 16px; }
         .score-inputs input:disabled { background: #131927; color: #6c7a9c; cursor: not-allowed; }
+        
+        /* Styl siatki kafelków wyboru mistrza */
+        .teams-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 15px 0; max-height: 380px; overflow-y: auto; padding-right: 5px; }
+        .team-tile-btn { background: #2a3558; color: white; border: 2px solid transparent; border-radius: 8px; padding: 12px 5px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; cursor: pointer; font-size: 13px; font-weight: bold; transition: all 0.2s ease; margin: 0; width: 100%; height: auto; }
+        .team-tile-btn img.emoji { height: 1.8em; width: 1.8em; margin: 0; }
+        .team-tile-btn:hover:not(:disabled) { background: #384775; border-color: #6c7a9c; }
+        .team-tile-btn.selected { background: rgba(255, 215, 0, 0.15); border-color: var(--amber); color: var(--amber); box-shadow: 0 0 10px rgba(255, 215, 0, 0.2); }
+        .team-tile-btn:disabled { opacity: 0.6; cursor: not-allowed; }
         
         .success-box { background: rgba(1, 195, 141, 0.1); border: 2px dashed var(--primary); color: var(--primary); text-align: center; padding: 15px; border-radius: 8px; margin-top: 25px; font-weight: bold; font-size: 16px; }
         
@@ -94,6 +102,7 @@
             .progress-bar { grid-template-columns: repeat(13, 1fr); gap: 4px; }
             .progress-step { padding: 6px 0; font-size: 11px; }
             .logo-container img { max-width: 240px; }
+            .teams-grid { grid-template-columns: repeat(4, 1fr); }
         }
     </style>
 </head>
@@ -284,8 +293,8 @@
         { id: "Mecz59", group: "J", t1: "Algieria", t2: "Austria", lock: "2026-06-28T04:00:00", score: "" },
         { id: "Mecz60", group: "J", t1: "Jordania", t2: "Argentyna", lock: "2026-06-28T04:00:00", score: "" },
         
-        // 🏆 SPECJALNY ELEMENT: Kto wygra mundial? (Tylko do obliczania punktów w tabeli)
-        { id: "zwyciezca", group: "FINAL", t1: "ZWYCIĘZCA MUNDIALU", t2: "", lock: "2026-06-11T21:00:00", score: "" } // WPISZ W `score` NAZWĘ KRAJU, NP. "Niemcy", ABY DAĆ KAŻDEMU KTO TRAFIŁ +250 PKT
+        // 🏆 SPECJALNY ELEMENT: Kto wygra mundial? (Do obliczania punktów w tabeli)
+        { id: "zwyciezca", group: "FINAL", t1: "ZWYCIĘZCA MUNDIALU", t2: "", lock: "2026-06-11T21:00:00", score: "" }
     ];
 
     function getFlagAnd3LetterCode(teamName) {
@@ -410,13 +419,7 @@
         const currentLetter = groupsOrder[currentGroupIndex];
         if (isGroupSubmittedByPlayer(currentLetter)) return;
 
-        if (currentLetter === "FINAL") {
-            const selectEl = document.getElementById('final-winner-select');
-            if (selectEl) {
-                localDraftScores["final-zwyciezca"] = selectEl.value;
-            }
-            return;
-        }
+        if (currentLetter === "FINAL") return; // Zapisywane bezpośrednio przy kliknięciu kafli
 
         const rows = document.querySelectorAll('.match-row');
         rows.forEach(row => {
@@ -433,6 +436,24 @@
         });
     }
 
+    function selectFinalWinner(teamName) {
+        if (isGroupSubmittedByPlayer("FINAL")) return;
+        
+        localDraftScores["final-zwyciezca"] = teamName;
+        
+        // Zmień podświetlenie przycisków w locie
+        const tiles = document.querySelectorAll('.team-tile-btn');
+        tiles.forEach(tile => {
+            if (tile.getAttribute('data-team') === teamName) {
+                tile.classList.add('selected');
+            } else {
+                tile.classList.remove('selected');
+            }
+        });
+
+        validateGroupCompletion();
+    }
+
     function renderActiveGroup() {
         const currentLetter = groupsOrder[currentGroupIndex];
         const container = document.getElementById('matches-list');
@@ -446,24 +467,31 @@
             const isLocked = isGroupSubmittedByPlayer("FINAL");
             const savedWinner = localDraftScores["final-zwyciezca"] || "";
 
-            let selectOptions = `<option value="">-- Wybierz reprezentację --</option>`;
-            // Wyciągamy unikalne i posortowane kraje
+            // Wyciągamy unikalne, poprawne nazwy państw bez duplikatów bazy
             const sortedTeams = Object.keys(teamFlags).filter(t => t !== "Bośnia i Hercegowina" && t !== "Bośnia i Herceg." && t !== "Korea Południowa").sort();
             
+            let gridHtml = `<div class="teams-grid">`;
             sortedTeams.forEach(team => {
-                const selectedAttr = team === savedWinner ? "selected" : "";
-                selectOptions += `<option value="${team}" ${selectedAttr}>${teamFlags[team]} ${team}</option>`;
+                const isSelected = team === savedWinner;
+                const activeClass = isSelected ? "selected" : "";
+                
+                // Formujemy tekst przycisku: FLAGA + 3 litery kodu (np. 🇵🇱 POL)
+                gridHtml += `
+                    <button type="button" class="team-tile-btn ${activeClass}" data-team="${team}" ${isLocked ? 'disabled' : ''} onclick="selectFinalWinner('${team}')">
+                        ${teamFlags[team]}
+                        <span style="font-size:11px; letter-spacing:0.5px;">${team.substring(0,3).toUpperCase()}</span>
+                    </button>
+                `;
             });
+            gridHtml += `</div>`;
 
-            let statusMsg = isLocked ? '<span class="submitted-text">🔒 WYBÓR ZATWIERDZONY</span>' : '🔥 Wybierz mądrze! Za trafienie zgarniasz aż 250 punktów!';
+            let statusMsg = isLocked ? '<span class="submitted-text">🔒 WYBÓR ZATWIERDZONY</span>' : '🔥 Wybierz mądrze klikając na flagę! Za trafienie zgarniasz aż 250 punktów!';
 
             container.innerHTML = `
-                <div style="text-align:center; padding:10px 0;">
-                    <p style="font-size:14px; margin-bottom:15px; color:#fff;">Która drużyna wygra tegoroczny Mundial i wzniesie puchar FIFA?</p>
-                    <select id="final-winner-select" ${isLocked ? 'disabled' : ''} onchange="saveCurrentInputsToDraft(); validateGroupCompletion();">
-                        ${selectOptions}
-                    </select>
-                    <p style="font-size:11px; margin-top:10px; color:#8a99ad;">${statusMsg}</p>
+                <div style="text-align:center; padding:5px 0;">
+                    <p style="font-size:14px; margin-bottom:10px; color:#fff;">Która drużyna wygra tegoroczny Mundial i wzniesie puchar FIFA?</p>
+                    ${gridHtml}
+                    <p style="font-size:12px; margin-top:12px; color:#8a99ad;">${statusMsg}</p>
                 </div>
             `;
             validateGroupCompletion();
@@ -569,14 +597,15 @@
         if (!btn) return;
 
         if (currentLetter === "FINAL") {
-            const selectEl = document.getElementById('final-winner-select');
-            if (selectEl && selectEl.value !== "") {
+            const selectedWinner = localDraftScores["final-zwyciezca"] || "";
+            if (selectedWinner !== "") {
                 btn.removeAttribute('disabled');
                 btn.style.background = "var(--amber)";
-                btn.innerText = "👑 Zapisz Typ i Zakończ Cały Typer!";
+                btn.style.color = "#131927";
+                btn.innerText = `👑 Zatwierdź: ${teamFlags[selectedWinner]} ${selectedWinner.toUpperCase()} i zamknij Typer!`;
             } else {
                 btn.setAttribute('disabled', 'true');
-                btn.innerText = "Wybierz reprezentację, aby zatwierdzić";
+                btn.innerText = "Kliknij na wybraną flagę, aby wskazać mistrza";
             }
             return;
         }
@@ -616,7 +645,6 @@
         if (currentLetter === "FINAL") {
             updateData["zwyciezca"] = localDraftScores["final-zwyciezca"] || "";
         } else {
-            // Dla tradycyjnych grup zbieramy mecze
             allMatches.forEach(m => {
                 if(m.group === "FINAL") return;
                 const matchKey = m.id.toLowerCase();
@@ -681,7 +709,6 @@
             return { points: 0, cssClass: "", type: "none" }; 
         }
 
-        // System rozliczania dla Zwycięzcy Świata
         if (isFinalWinnerField) {
             if (playerPrediction.toLowerCase().trim() === officialResult.toLowerCase().trim()) {
                 return { points: 250, cssClass: "cell-winner", type: "winner" };
@@ -689,7 +716,6 @@
             return { points: 0, cssClass: "cell-miss", type: "miss" };
         }
 
-        // Standardowy system meczowy
         if (!playerPrediction.includes(":")) return { points: 0, cssClass: "", type: "none" };
         if (playerPrediction.trim() === officialResult.trim()) {
             return { points: 45, cssClass: "cell-exact", type: "exact" }; 
@@ -717,7 +743,6 @@
         const trHead = document.createElement('tr');
         trHead.innerHTML = "<th style='position:sticky; left:0; background:#1a2238; z-index:3;'>Gracz</th>";
         
-        // Generowanie nagłówków tabeli (mecze)
         allMatches.forEach(m => {
             const homeFormat = getFlagAnd3LetterCode(m.t1);
             const awayFormat = getFlagAnd3LetterCode(m.t2);
@@ -762,7 +787,7 @@
                 if (m.id === "zwyciezca") {
                     playerPrediction = row["zwyciezca"] || "-";
                     evaluation = evaluatePrediction(playerPrediction, m.score, true);
-                    const displayPrediction = playerPrediction !== "-" ? (teamFlags[playerPrediction] || "") + " " + playerPrediction : "-";
+                    const displayPrediction = playerPrediction !== "-" ? (teamFlags[playerPrediction] || "") + " " + playerPrediction.substring(0,3).toUpperCase() : "-";
                     rowHtml += `<td class="${evaluation.cssClass}" style="white-space:nowrap;">${displayPrediction}</td>`;
                 } else {
                     const matchKey = m.id.toLowerCase();
