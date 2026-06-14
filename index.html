@@ -67,8 +67,14 @@
         .progress-step:hover { background: #2a3558; color: white; }
         .progress-step.active { color: var(--bg); background: var(--primary); }
 
+        /* Style dla przełącznika widoku tabeli */
+        .table-toggle-container { display: flex; justify-content: center; gap: 10px; margin-bottom: 15px; }
+        .toggle-btn { background: #1a2238; color: #8a99ad; border: 1px solid #2a3558; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: bold; cursor: pointer; width: auto; margin: 0; }
+        .toggle-btn.active { background: var(--primary); color: var(--bg); border-color: var(--primary); }
+
         @media (min-width: 500px) {
             .progress-bar { grid-template-columns: repeat(12, 1fr); gap: 4px; }
+            .progress-bar.pucharowa-grid { grid-template-columns: repeat(5, 1fr) !important; }
             .progress-step { padding: 6px 0; font-size: 12px; }
             .logo-container img { max-width: 240px; }
         }
@@ -112,7 +118,13 @@
         </div>
 
         <div class="card" id="global-scores-card">
-            <h2>📊 Szczegółowe Typy Graczy (Faza Grupowa)</h2>
+            <h2>📊 Szczegółowe Typy Graczy</h2>
+            
+            <div class="table-toggle-container">
+                <button id="toggle-tab-grupowa" class="toggle-btn" onclick="setTableView('GRUPOWA')">Faza Grupowa</button>
+                <button id="toggle-tab-pucharowa" class="toggle-btn" onclick="setTableView('PUCHAROWA')">Faza Pucharowa</button>
+            </div>
+
             <button onclick="loadAllScores()" style="background:#2a3558; color:white; font-size:12px; padding:6px; margin-bottom:10px; width:auto;">🔄 Odśwież tabelę i punkty</button>
             <div class="table-container">
                 <table id="global-table">
@@ -146,7 +158,7 @@
     // =================================================================
     // 🎛️ PRZEŁĄCZNIK FAZY: Zmień na true, aby włączyć Fazę Pucharową!
     // =================================================================
-    const POKAZUJ_FAZE_PUCHAROWA = true; 
+    const POKAZUJ_FAZE_PUCHAROWA = false; 
 
     // =========================================================
     // ⚠️ TUTAJ WKLEJ SWÓJ LINK Z GOOGLE APPS SCRIPT:
@@ -154,10 +166,14 @@
     const KEY_NAME = "sheet1"; 
     // =========================================================
 
-    const groupsOrder = POKAZUJ_FAZE_PUCHAROWA ? ["Pucharowa"] : ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
+    // Dynamiczny podział etapów pucharowych zamiast liter grup
+    const groupsOrder = POKAZUJ_FAZE_PUCHAROWA ? ["1/16", "1/8", "1/4", "1/2", "Finały"] : ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
     let currentGroupIndex = 0; 
     let localDraftScores = {}; 
     let existingDatabaseRows = [];
+    
+    // Zmienna trzymająca informację, który widok tabeli na dole jest obecnie włączony
+    let currentTableView = POKAZUJ_FAZE_PUCHAROWA ? "PUCHAROWA" : "GRUPOWA";
 
     const teamFlags = {
         "Meksyk": "🇲🇽", "RPA": "🇿🇦", "Korea Płd.": "🇰🇷", "Czechy": "🇨🇿", "Korea Południowa": "🇰🇷",
@@ -169,10 +185,9 @@
         "Belgia": "🇧🇪", "Egipt": "🇪🇬", "Iran": "🇮🇷", "Nowa Zelandia": "🇳🇿", "Nowa Zel.": "🇳🇿",
         "Hiszpania": "🇪🇸", "Rep. Ziel. Przyl.": "🇨🇻", "Rep. Zielonego Przyl.": "🇨🇻", "Rep. Z. Prz.": "🇨🇻", "Arabia Saud.": "🇸🇦", "Arabia Saudyjska": "🇸🇦", "Arabia S.": "🇸🇦", "Urugwaj": "🇺🇾",
         "Francja": "🇫🇷", "Senegal": "🇸🇳", "Irak": "🇮🇶", "Norwegia": "🇳🇴",
-        "Argentyna": "🇦🇷", "Algieria": "🇩🇿", "Austria": "🇦🇹", "Jordania": "🇯🇴",
+        "Argentyna": "🇦🇷", "Algieria": "🇩🇿", "Austria": "🇦🇹", "Jordania": "JOR",
         "Portugalia": "🇵🇹", "DR Kongo": "🇨🇩", "DR Konga": "🇨🇩", "Uzbekistan": "🇺🇿", "Kolumbia": "🇨🇴",
         "Anglia": "🏴󠁧󠁢󠁥󠁮󠁧󠁿", "Chorwacja": "🇭🇷", "Ghana": "🇬🇭", "Panama": "🇵🇦",
-        // Tutaj możesz dopisać brakujące reprezentacje, które awansują do fazy pucharowej:
         "Zwycięzca": "🏆"
     };
 
@@ -228,8 +243,8 @@
         { id: "Mecz64", group: "K", t1: "Kolumbia", t2: "DR Kongo", lock: "2026-06-24T04:00:00", score: "" },
         { id: "Mecz11", group: "B", t1: "Szwajcaria", t2: "Kanada", lock: "2026-06-24T21:00:00", score: "" },
         { id: "Mecz12", group: "B", t1: "Bośnia i Herc.", t2: "Katar", lock: "2026-06-24T21:00:00", score: "" },
-        { id: "Mecz18", group: "C", t1: "Maroko", t2: "Haiti", lock: "2026-06-25T00:00:00", score: "" },
-        { id: "Mecz17", group: "C", t1: "Szkocja", t2: "Brazylia", lock: "2026-06-25T00:00:00", score: "" },
+        { id: "Mecz18", group: "C", t1: "Maroko", t2: "Haiti", lock: "2026-07-25T00:00:00", score: "" },
+        { id: "Mecz17", group: "C", t1: "Szkocja", t2: "Brazylia", lock: "2026-07-25T00:00:00", score: "" },
         { id: "Mecz6", group: "A", t1: "RPA", t2: "Korea Płd.", lock: "2026-06-25T03:00:00", score: "" },
         { id: "Mecz5", group: "A", t1: "Czechy", t2: "Meksyk", lock: "2026-06-25T03:00:00", score: "" },
         { id: "Mecz29", group: "E", t1: "Curacao", t2: "WKS", lock: "2026-06-25T22:00:00", score: "" },
@@ -251,50 +266,47 @@
         { id: "Mecz59", group: "J", t1: "Algieria", t2: "Austria", lock: "2026-06-28T04:00:00", score: "" },
         { id: "Mecz60", group: "J", t1: "Jordania", t2: "Argentyna", lock: "2026-06-28T04:00:00", score: "" },
 
-        // --- 1/16 FINAŁU (NOWA RUNDA MUNDIALU 2026) ---
-        // Gdy faza grupowa dobiegnie końca, wklejasz tu realne nazwy państw zamiast np. "1A" czy "2B"
-        { id: "Mecz73", group: "Pucharowa", t1: "1A", t2: "3C/D/E", lock: "2026-06-29T18:00:00", score: "" },
-        { id: "Mecz74", group: "Pucharowa", t1: "2A", t2: "2B", lock: "2026-06-29T22:00:00", score: "" },
-        { id: "Mecz75", group: "Pucharowa", t1: "1B", t2: "3A/C/F", lock: "2026-06-30T18:00:00", score: "" },
-        { id: "Mecz76", group: "Pucharowa", t1: "1C", t2: "3F/G/H", lock: "2026-06-30T22:00:00", score: "" },
-        { id: "Mecz77", group: "Pucharowa", t1: "1D", t2: "3I/J/K", lock: "2026-07-01T18:00:00", score: "" },
-        { id: "Mecz78", group: "Pucharowa", t1: "2C", t2: "2D", lock: "2026-07-01T22:00:00", score: "" },
-        { id: "Mecz79", group: "Pucharowa", t1: "1E", t2: "3B/D/F", lock: "2026-07-02T18:00:00", score: "" },
-        { id: "Mecz80", group: "Pucharowa", t1: "1F", t2: "3E/G/I", lock: "2026-07-02T22:00:00", score: "" },
-        { id: "Mecz81", group: "Pucharowa", t1: "1G", t2: "3A/H/K", lock: "2026-07-03T18:00:00", score: "" },
-        { id: "Mecz82", group: "Pucharowa", t1: "1H", t2: "3B/I/L", lock: "2026-07-03T22:00:00", score: "" },
-        { id: "Mecz83", group: "Pucharowa", t1: "1I", t2: "3A/D/G", lock: "2026-07-04T18:00:00", score: "" },
-        { id: "Mecz84", group: "Pucharowa", t1: "1J", t2: "3B/E/H", lock: "2026-07-04T22:00:00", score: "" },
-        { id: "Mecz85", group: "Pucharowa", t1: "1K", t2: "3C/F/I", lock: "2026-07-05T18:00:00", score: "" },
-        { id: "Mecz86", group: "Pucharowa", t1: "1L", t2: "3D/G/J", lock: "2026-07-05T22:00:00", score: "" },
-        { id: "Mecz87", group: "Pucharowa", t1: "2E", t2: "2F", lock: "2026-07-06T18:00:00", score: "" },
-        { id: "Mecz88", group: "Pucharowa", t1: "2G", t2: "2H", lock: "2026-07-06T22:00:00", score: "" },
+        // --- FAZA PUCHAROWA: 1/16 FINAŁU ---
+        { id: "Mecz73", group: "1/16", t1: "1A", t2: "3C/D/E", lock: "2026-06-29T18:00:00", score: "" },
+        { id: "Mecz74", group: "1/16", t1: "2A", t2: "2B", lock: "2026-06-29T22:00:00", score: "" },
+        { id: "Mecz75", group: "1/16", t1: "1B", t2: "3A/C/F", lock: "2026-06-30T18:00:00", score: "" },
+        { id: "Mecz76", group: "1/16", t1: "1C", t2: "3F/G/H", lock: "2026-06-30T22:00:00", score: "" },
+        { id: "Mecz77", group: "1/16", t1: "1D", t2: "3I/J/K", lock: "2026-07-01T18:00:00", score: "" },
+        { id: "Mecz78", group: "1/16", t1: "2C", t2: "2D", lock: "2026-07-01T22:00:00", score: "" },
+        { id: "Mecz79", group: "1/16", t1: "1E", t2: "3B/D/F", lock: "2026-07-02T18:00:00", score: "" },
+        { id: "Mecz80", group: "1/16", t1: "1F", t2: "3E/G/I", lock: "2026-07-02T22:00:00", score: "" },
+        { id: "Mecz81", group: "1/16", t1: "1G", t2: "3A/H/K", lock: "2026-07-03T18:00:00", score: "" },
+        { id: "Mecz82", group: "1/16", t1: "1H", t2: "3B/I/L", lock: "2026-07-03T22:00:00", score: "" },
+        { id: "Mecz83", group: "1/16", t1: "1I", t2: "3A/D/G", lock: "2026-07-04T18:00:00", score: "" },
+        { id: "Mecz84", group: "1/16", t1: "1J", t2: "3B/E/H", lock: "2026-07-04T22:00:00", score: "" },
+        { id: "Mecz85", group: "1/16", t1: "1K", t2: "3C/F/I", lock: "2026-07-05T18:00:00", score: "" },
+        { id: "Mecz86", group: "1/16", t1: "1L", t2: "3D/G/J", lock: "2026-07-05T22:00:00", score: "" },
+        { id: "Mecz87", group: "1/16", t1: "2E", t2: "2F", lock: "2026-07-06T18:00:00", score: "" },
+        { id: "Mecz88", group: "1/16", t1: "2G", t2: "2H", lock: "2026-07-06T22:00:00", score: "" },
 
-        // --- 1/8 FINAŁU ---
-        { id: "Mecz89", group: "Pucharowa", t1: "Zwycięzca M73", t2: "Zwycięzca M74", lock: "2026-07-07T18:00:00", score: "" },
-        { id: "Mecz90", group: "Pucharowa", t1: "Zwycięzca M75", t2: "Zwycięzca M76", lock: "2026-07-07T22:00:00", score: "" },
-        { id: "Mecz91", group: "Pucharowa", t1: "Zwycięzca M77", t2: "Zwycięzca M78", lock: "2026-07-08T18:00:00", score: "" },
-        { id: "Mecz92", group: "Pucharowa", t1: "Zwycięzca M79", t2: "Zwycięzca M80", lock: "2026-07-08T22:00:00", score: "" },
-        { id: "Mecz93", group: "Pucharowa", t1: "Zwycięzca M81", t2: "Zwycięzca M82", lock: "2026-07-09T18:00:00", score: "" },
-        { id: "Mecz94", group: "Pucharowa", t1: "Zwycięzca M83", t2: "Zwycięzca M84", lock: "2026-07-09T22:00:00", score: "" },
-        { id: "Mecz95", group: "Pucharowa", t1: "Zwycięzca M85", t2: "Zwycięzca M86", lock: "2026-07-10T18:00:00", score: "" },
-        { id: "Mecz96", group: "Pucharowa", t1: "Zwycięzca M87", t2: "Zwycięzca M88", lock: "2026-07-10T22:00:00", score: "" },
+        // --- FAZA PUCHAROWA: 1/8 FINAŁU ---
+        { id: "Mecz89", group: "1/8", t1: "Zwycięzca M73", t2: "Zwycięzca M74", lock: "2026-07-07T18:00:00", score: "" },
+        { id: "Mecz90", group: "1/8", t1: "Zwycięzca M75", t2: "Zwycięzca M76", lock: "2026-07-07T22:00:00", score: "" },
+        { id: "Mecz91", group: "1/8", t1: "Zwycięzca M77", t2: "Zwycięzca M78", lock: "2026-07-08T18:00:00", score: "" },
+        { id: "Mecz92", group: "1/8", t1: "Zwycięzca M79", t2: "Zwycięzca M80", lock: "2026-07-08T22:00:00", score: "" },
+        { id: "Mecz93", group: "1/8", t1: "Zwycięzca M81", t2: "Zwycięzca M82", lock: "2026-07-09T18:00:00", score: "" },
+        { id: "Mecz94", group: "1/8", t1: "Zwycięzca M83", t2: "Zwycięzca M84", lock: "2026-07-09T22:00:00", score: "" },
+        { id: "Mecz95", group: "1/8", t1: "Zwycięzca M85", t2: "Zwycięzca M86", lock: "2026-07-10T18:00:00", score: "" },
+        { id: "Mecz96", group: "1/8", t1: "Zwycięzca M87", t2: "Zwycięzca M88", lock: "2026-07-10T22:00:00", score: "" },
 
-        // --- ĆWIERĆFINAŁY ---
-        { id: "Mecz97", group: "Pucharowa", t1: "Zwycięzca M89", t2: "Zwycięzca M90", lock: "2026-07-11T18:00:00", score: "" },
-        { id: "Mecz98", group: "Pucharowa", t1: "Zwycięzca M91", t2: "Zwycięzca M92", lock: "2026-07-11T22:00:00", score: "" },
-        { id: "Mecz99", group: "Pucharowa", t1: "Zwycięzca M93", t2: "Zwycięzca M94", lock: "2026-07-12T18:00:00", score: "" },
-        { id: "Mecz100", group: "Pucharowa", t1: "Zwycięzca M95", t2: "Zwycięzca M96", lock: "2026-07-12T22:00:00", score: "" },
+        // --- FAZA PUCHAROWA: ĆWIERĆFINAŁY (1/4) ---
+        { id: "Mecz97", group: "1/4", t1: "Zwycięzca M89", t2: "Zwycięzca M90", lock: "2026-07-11T18:00:00", score: "" },
+        { id: "Mecz98", group: "1/4", t1: "Zwycięzca M91", t2: "Zwycięzca M92", lock: "2026-07-11T22:00:00", score: "" },
+        { id: "Mecz99", group: "1/4", t1: "Zwycięzca M93", t2: "Zwycięzca M94", lock: "2026-07-12T18:00:00", score: "" },
+        { id: "Mecz100", group: "1/4", t1: "Zwycięzca M95", t2: "Zwycięzca M96", lock: "2026-07-12T22:00:00", score: "" },
 
-        // --- PÓŁFINAŁY ---
-        { id: "Mecz101", group: "Pucharowa", t1: "Zwycięzca M97", t2: "Zwycięzca M98", lock: "2026-07-14T21:00:00", score: "" },
-        { id: "Mecz102", group: "Pucharowa", t1: "Zwycięzca M99", t2: "Zwycięzca M100", lock: "2026-07-15T21:00:00", score: "" },
+        // --- FAZA PUCHAROWA: PÓŁFINAŁY (1/2) ---
+        { id: "Mecz101", group: "1/2", t1: "Zwycięzca M97", t2: "Zwycięzca M98", lock: "2026-07-14T21:00:00", score: "" },
+        { id: "Mecz102", group: "1/2", t1: "Zwycięzca M99", t2: "Zwycięzca M100", lock: "2026-07-15T21:00:00", score: "" },
 
-        // --- MECZ O 3. MIEJSCE ---
-        { id: "Mecz103", group: "Pucharowa", t1: "Przegrany M101", t2: "Przegrany M102", lock: "2026-07-18T21:00:00", score: "" },
-
-        // --- FINAŁ MUNDIALU ---
-        { id: "Mecz104", group: "Pucharowa", t1: "Zwycięzca M101", t2: "Zwycięzca M102", lock: "2026-07-19T21:00:00", score: "" }
+        // --- FAZA PUCHAROWA: FINAŁY (Finał i Mecz o 3. miejsce) ---
+        { id: "Mecz103", group: "Finały", t1: "Przegrany M101", t2: "Przegrany M102", lock: "2026-07-18T21:00:00", score: "" },
+        { id: "Mecz104", group: "Finały", t1: "Zwycięzca M101", t2: "Zwycięzca M102", lock: "2026-07-19T21:00:00", score: "" }
     ];
 
     function getFlagAnd3LetterCode(teamName) {
@@ -311,19 +323,16 @@
 
     function isGroupSubmittedByPlayer(groupLetter) {
         const nick = localStorage.getItem('typerNick') || "";
-        return localStorage.getItem(`submitted_group_${groupLetter.toLowerCase()}_${nick.toLowerCase()}`) === "true";
+        // Podmieniamy ukośnik na bezpieczny znak w kluczu localStorage dla 1/16 itd.
+        const safeLetter = groupLetter.replace("/", "-");
+        return localStorage.getItem(`submitted_group_${safeLetter.toLowerCase()}_${nick.toLowerCase()}`) === "true";
     }
 
     async function initApp() {
-        if (POKAZUJ_FAZE_PUCHAROWA) {
-            document.getElementById('steps-bar').classList.add('hidden');
-            document.getElementById('global-scores-card').classList.add('hidden');
-        }
-
         try {
             await loadAllScores();
         } catch (e) {
-            console.error("Ignorowany błąd pobierania bazy przy starcie:", e);
+            console.error("Błąd pobierania bazy przy starcie:", e);
         }
 
         document.getElementById('loading-screen').classList.add('hidden');
@@ -377,16 +386,24 @@
                 });
 
                 if (hasAtLeastOnePrediction) {
-                    localStorage.setItem(`submitted_group_${g.toLowerCase()}_${nick.toLowerCase()}`, "true");
+                    const safeLetter = g.replace("/", "-");
+                    localStorage.setItem(`submitted_group_${safeLetter.toLowerCase()}_${nick.toLowerCase()}`, "true");
                 }
             });
         }
     }
 
     function renderProgressBar() {
-        if (POKAZUJ_FAZE_PUCHAROWA) return;
         const bar = document.getElementById('steps-bar');
         bar.innerHTML = "";
+        
+        // Dodatkowa klasa CSS ułatwiająca rozłożenie 5 przycisków pucharowych na desktopie/mobile
+        if (POKAZUJ_FAZE_PUCHAROWA) {
+            bar.classList.add('pucharowa-grid');
+        } else {
+            bar.classList.remove('pucharowa-grid');
+        }
+
         groupsOrder.forEach((g, idx) => {
             const span = document.createElement('span');
             const isDone = isGroupSubmittedByPlayer(g);
@@ -425,7 +442,12 @@
 
     function renderActiveGroup() {
         const currentLetter = groupsOrder[currentGroupIndex];
-        document.getElementById('group-title').innerText = POKAZUJ_FAZE_PUCHAROWA ? "🏆 DRABINKA PUCHAROWA — TYPOWANIE" : `🏆 FAZA GRUPOWA — GRUPA ${currentLetter}`;
+        
+        if (POKAZUJ_FAZE_PUCHAROWA) {
+            document.getElementById('group-title').innerText = `🏆 FAZA PUCHAROWA — ETAP ${currentLetter}`;
+        } else {
+            document.getElementById('group-title').innerText = `🏆 FAZA GRUPOWA — GRUPA ${currentLetter}`;
+        }
         
         const container = document.getElementById('matches-list');
         container.innerHTML = "";
@@ -463,12 +485,11 @@
                 statusMessage = '<span class="submitted-text">🔒 ZABLOKOWANY (Wysłano)</span>';
             }
 
-            // Mały dopisek informacyjny dla fazy pucharowej
-            const rundaInfo = POKAZUJ_FAZE_PUCHAROWA ? `<div style="font-size: 10px; color: #01c38d; margin-bottom: 2px;">${match.id === 'Mecz104' ? 'FINAŁ' : match.id === 'Mecz103' ? 'O 3. MIEJSCE' : Number(match.id.replace('Mecz','')) <= 88 ? '1/16 FINAŁU' : Number(match.id.replace('Mecz','')) <= 96 ? '1/8 FINAŁU' : Number(match.id.replace('Mecz','')) <= 100 ? 'ĆWIERĆFINAŁ' : 'PÓŁFINAŁ'}</div>` : '';
+            const dopisekPucharowy = POKAZUJ_FAZE_PUCHAROWA ? `<div style="font-size: 10px; color: #01c38d; margin-bottom: 2px;">Mecz nr ${match.id.replace('Mecz','')} | *wynik po ew. dogrywce/karnych</div>` : '';
 
             div.innerHTML = `
                 <div class="match-info">
-                    ${rundaInfo}
+                    ${dopisekPucharowy}
                     <span class="match-teams">${f1} ${match.t1} - ${f2} ${match.t2} ${officialResultText}</span>
                     <span class="match-date">${statusMessage}</span>
                 </div>
@@ -510,7 +531,7 @@
         const submitContainer = document.getElementById('submit-container');
 
         if (isGroupSubmittedByPlayer(currentLetter)) {
-            submitContainer.innerHTML = `<div class="success-box">⭐ Twoje typy na tę fazę zostały już zatwierdzone i zablokowane!</div>`;
+            submitContainer.innerHTML = `<div class="success-box">⭐ Twoje typy na ten etap zostały już zatwierdzone i zablokowane!</div>`;
             return;
         }
 
@@ -535,7 +556,7 @@
         if (btn) {
             if (allFilled) {
                 btn.removeAttribute('disabled');
-                btn.innerText = POKAZUJ_FAZE_PUCHAROWA || currentGroupIndex === groupsOrder.length - 1 ? "💾 Zapisz i Zakończ Typowanie!" : `💾 Zapisz i przejdź do Grupy ${groupsOrder[currentGroupIndex + 1]}`;
+                btn.innerText = currentGroupIndex === groupsOrder.length - 1 ? "💾 Zapisz i Zakończ Typowanie!" : `💾 Zapisz i przejdź do etapu: ${groupsOrder[currentGroupIndex + 1]}`;
             } else {
                 btn.setAttribute('disabled', 'true');
                 btn.innerText = "Wpisz wszystkie otwarte wyniki, aby przejść dalej";
@@ -580,7 +601,9 @@
                 throw new Error(responseData.message || "Błąd wewnętrzny bazy Google Sheets");
             }
 
-            localStorage.setItem(`submitted_group_${currentLetter.toLowerCase()}_${nick.toLowerCase()}`, "true");
+            const safeLetter = currentLetter.replace("/", "-");
+            localStorage.setItem(`submitted_group_${safeLetter.toLowerCase()}_${nick.toLowerCase()}`, "true");
+            
             const indexToUpdate = existingDatabaseRows.findIndex(r => r.gracz && r.gracz.toLowerCase() === nick.toLowerCase());
             if(indexToUpdate !== -1) {
                 Object.assign(existingDatabaseRows[indexToUpdate], updateData);
@@ -588,14 +611,14 @@
                 existingDatabaseRows.push(updateData);
             }
 
-            if (!POKAZUJ_FAZE_PUCHAROWA && currentGroupIndex < groupsOrder.length - 1) {
-                alert(`Grupa ${groupsOrder[currentGroupIndex]} została zapisana i ZABLOKOWANA przed zmianami! 🚀`);
+            if (currentGroupIndex < groupsOrder.length - 1) {
+                alert(`Etap ${groupsOrder[currentGroupIndex]} został zapisany i ZABLOKOWANY przed zmianami! 🚀`);
                 currentGroupIndex++;
                 renderProgressBar(); renderActiveGroup(); 
                 try { await loadAllScores(); } catch(e){}
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             } else {
-                alert("Wszystkie Twoje typy zostały oficjalnie zapisane i zablokowane! Powodzenia! 🎉");
+                alert("Wszystkie Twoje typy na ten etap zostały oficjalnie zapisane i zablokowane! Powodzenia! 🎉");
                 renderProgressBar(); renderActiveGroup();
                 try { await loadAllScores(); } catch(e){}
             }
@@ -625,29 +648,53 @@
         return { points: 0, cssClass: "cell-miss", type: "miss" };
     }
 
+    // Funkcja zmieniająca widok tabeli na dole (Grupowa vs Pucharowa)
+    function setTableView(viewMode) {
+        currentTableView = viewMode;
+        renderScoresTable();
+    }
+
     async function loadAllScores() {
-        const thead = document.getElementById('table-head');
-        const tbody = document.getElementById('table-body');
-        const leaderboardBody = document.getElementById('leaderboard-body');
-        
         const response = await fetch(API_URL);
         const data = await response.json();
         existingDatabaseRows = data[KEY_NAME] || [];
         
-        // Generowanie nagłówków tabeli (tylko dla Fazy Grupowej)
+        renderScoresTable();
+    }
+
+    function renderScoresTable() {
+        const thead = document.getElementById('table-head');
+        const tbody = document.getElementById('table-body');
+        const leaderboardBody = document.getElementById('leaderboard-body');
+
+        // Aktualizacja wyglądu przycisków przełącznika
+        document.getElementById('toggle-tab-grupowa').classList.remove('active');
+        document.getElementById('toggle-tab-pucharowa').classList.remove('active');
+        if (currentTableView === "GRUPOWA") {
+            document.getElementById('toggle-tab-grupowa').classList.add('active');
+        } else {
+            document.getElementById('toggle-tab-pucharowa').classList.add('active');
+        }
+
+        // Filtrowanie meczów do wyświetlenia w tabeli na podstawie wybranego trybu widoku
+        const meczeDoTabeli = allMatches.filter(m => {
+            const czyPucharowy = ["1/16", "1/8", "1/4", "1/2", "Finały"].includes(m.group);
+            return currentTableView === "PUCHAROWA" ? czyPucharowy : !czyPucharowy;
+        });
+
+        // Generowanie nagłówków tabeli
         thead.innerHTML = "";
         const trHead = document.createElement('tr');
         trHead.innerHTML = "<th style='position:sticky; left:0; background:#1a2238; z-index:3;'>Gracz</th>";
         
-        const fazaGrupowaMecze = allMatches.filter(m => m.group !== "Pucharowa");
-        fazaGrupowaMecze.forEach(m => {
+        meczeDoTabeli.forEach(m => {
             const homeFormat = getFlagAnd3LetterCode(m.t1);
             const awayFormat = getFlagAnd3LetterCode(m.t2);
             const resultSub = m.score ? `<br><span style="color:#01c38d; font-size:10px;">(${m.score})</span>` : '';
             trHead.innerHTML += `
                 <th>
                     <div class="th-match-header" style="flex-direction:column;">
-                        <div style="font-size:9px; color:#8a99ad; margin-bottom:2px;">GR. ${m.group}</div>
+                        <div style="font-size:9px; color:#8a99ad; margin-bottom:2px;">${m.group}</div>
                         <div>${homeFormat}-${awayFormat}</div>
                         ${resultSub}
                     </div>
@@ -659,7 +706,7 @@
         tbody.innerHTML = "";
 
         if (!Array.isArray(existingDatabaseRows) || existingDatabaseRows.length === 0) {
-            tbody.innerHTML = "<tr><td colspan='73'>Brak wpisów w bazie danych.</td></tr>";
+            tbody.innerHTML = `<tr><td colspan="${meczeDoTabeli.length + 1}">Brak wpisów w bazie danych.</td></tr>`;
             leaderboardBody.innerHTML = "<tr><td colspan='3'>Brak danych do stworzenia rankingu.</td></tr>";
             refreshTwemoji();
             return;
@@ -671,6 +718,7 @@
             const tr = document.createElement('tr');
             let rowHtml = `<td style="font-weight:bold; color:#01c38d; position:sticky; left:0; background:#131927; z-index:1;">${row.gracz}</td>`;
             
+            // Punkty zliczamy ZAWSZE ze wszystkich meczów (cały turniej)
             allMatches.forEach(m => {
                 const matchKey = m.id.toLowerCase();
                 const playerPrediction = row[matchKey] || '-';
@@ -679,10 +727,14 @@
                
                 if (evaluation.type === "exact") countExact++;
                 if (evaluation.type === "trend") countTrend++;
-                
-                if (m.group !== "Pucharowa") {
-                    rowHtml += `<td class="${evaluation.cssClass}">${playerPrediction}</td>`;
-                }
+            });
+
+            // Ale w samej tabeli HTML rysujemy tylko kolumny z aktualnie wybranego widoku
+            meczeDoTabeli.forEach(m => {
+                const matchKey = m.id.toLowerCase();
+                const playerPrediction = row[matchKey] || '-';
+                const evaluation = evaluatePrediction(playerPrediction, m.score);
+                rowHtml += `<td class="${evaluation.cssClass}">${playerPrediction}</td>`;
             });
             
             tr.innerHTML = rowHtml;
@@ -690,6 +742,7 @@
             playersLeaderboard.push({ name: row.gracz, points: totalPoints, exacts: countExact, trends: countTrend });
         });
 
+        // Sortowanie rankingu głównego
         playersLeaderboard.sort((a, b) => b.points !== a.points ? b.points - a.points : b.exacts - a.exacts);
         leaderboardBody.innerHTML = "";
         playersLeaderboard.forEach((player, index) => {
