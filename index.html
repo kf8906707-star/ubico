@@ -91,7 +91,7 @@
     <div id="loading-screen" class="card">
         <h2 style="color: white; font-size: 18px;">Wczytywanie danych Typera...</h2>
         <div class="spinner"></div>
-        <p style="color: #8a99ad; font-size: 12px; margin: 0;">Pobieramy najnowsze wyniki z bazy danych</p>
+        <p style="color: #8a99ad; font-size: 12px; margin: 0;">Pobieramy wyniki Fazy Grupowej oraz Pucharowej</p>
     </div>
 
     <div id="login-screen" class="card hidden">
@@ -133,7 +133,7 @@
         </div>
 
         <div class="card">
-            <h2>🏆 Klasyfikacja Generalna UBICO</h2>
+            <h2>🏆 Klasyfikacja Generalna UBICO (Suma Faz)</h2>
             <div class="table-container">
                 <table class="leaderboard-table">
                     <thead>
@@ -154,20 +154,22 @@
 
 <script>
     // =================================================================
-    // 🎛️ PRZEŁĄCZNIK FAZY: Zmień na true, aby włączyć Fazę Pucharową!
+    // 🎛️ PRZEŁĄCZNIK FAZY DLA PANELU GRACZA: true = pucharowa, false = grupowa
     // =================================================================
     const POKAZUJ_FAZE_PUCHAROWA = true; 
 
-    // =========================================================
-    // ⚠️ TUTAJ WKLEJ SWÓJ LINK Z GOOGLE APPS SCRIPT:
-    const API_URL = "https://script.google.com/macros/s/AKfycbwjOVX65lGIU7eyqlnJQdS5RUcCiouUNet845N1kHiNNPtPeeXcBqsOsOS2p3fyKjxK/exec";
-    const KEY_NAME = "Sheet1"; 
-    // =========================================================
+    // =================================================================
+    // ⚠️ SKONFIGURUJ OBA LINKI API Z GOOGLE APPS SCRIPT:
+    // =================================================================
+    const API_URL_GRUPOWA = "https://script.google.com/macros/s/AKfycbwITEYeeJMhwBvCygn9f75aGAmkIfRL8XJV7erXPZYOj84GDMBXgWHLvut7rNXIBag4hA/exec";
+    const API_URL_PUCHAROWA = "https://script.google.com/macros/s/AKfycbwjOVX65lGIU7eyqlnJQdS5RUcCiouUNet845N1kHiNNPtPeeXcBqsOsOS2p3fyKjxK/exec";
+    const KEY_NAME = "sheet1"; 
+    // =================================================================
 
     const groupsOrder = POKAZUJ_FAZE_PUCHAROWA ? ["1/16", "1/8", "1/4", "1/2", "Finały"] : ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
     let currentGroupIndex = 0; 
     let localDraftScores = {}; 
-    let existingDatabaseRows = [];
+    let existingDatabaseRows = []; // Tu scalimy dane graczy z obu baz
     let currentTableView = POKAZUJ_FAZE_PUCHAROWA ? "PUCHAROWA" : "GRUPOWA";
     let currentUser = null;
 
@@ -218,8 +220,8 @@
         { id: "Mecz10", group: "B", t1: "Kanada", t2: "Katar", lock: "2026-06-19T00:00:00", score: "" },
         { id: "Mecz4", group: "A", t1: "Meksyk", t2: "Korea Płd.", lock: "2026-06-19T03:00:00", score: "" },
         { id: "Mecz21", group: "D", t1: "USA", t2: "Australia", lock: "2026-06-19T21:00:00", score: "" },
-        { id: "Mecz15", group: "C", t1: "Szkocja", t2: "Maroko", lock: "2026-06-20T00:00:00", score: "" },
-        { id: "Mecz16", group: "C", t1: "Brazylia", t2: "Haiti", lock: "2026-06-20T03:00:00", score: "" },
+        { id: "Mecz15", group: "C", t1: "Szkocja", t2: "Maroko", lock: "2026-07-20T00:00:00", score: "" },
+        { id: "Mecz16", group: "C", t1: "Brazylia", t2: "Haiti", lock: "2026-07-20T03:00:00", score: "" },
         { id: "Mecz22", group: "D", t1: "Turcja", t2: "Paragwaj", lock: "2026-06-20T06:00:00", score: "" },
         { id: "Mecz33", group: "F", t1: "Holandia", t2: "Szwecja", lock: "2026-06-20T19:00:00", score: "" },
         { id: "Mecz27", group: "E", t1: "Niemcy", t2: "WKS", lock: "2026-06-20T22:00:00", score: "" },
@@ -239,8 +241,8 @@
         { id: "Mecz64", group: "K", t1: "Kolumbia", t2: "DR Kongo", lock: "2026-06-24T04:00:00", score: "" },
         { id: "Mecz11", group: "B", t1: "Szwajcaria", t2: "Kanada", lock: "2026-06-24T21:00:00", score: "" },
         { id: "Mecz12", group: "B", t1: "Bośnia i Herc.", t2: "Katar", lock: "2026-06-24T21:00:00", score: "" },
-        { id: "Mecz18", group: "C", t1: "Maroko", t2: "Haiti", lock: "2026-07-25T00:00:00", score: "" },
-        { id: "Mecz17", group: "C", t1: "Szkocja", t2: "Brazylia", lock: "2026-07-25T00:00:00", score: "" },
+        { id: "Mecz18", group: "C", t1: "Maroko", t2: "Haiti", lock: "2026-06-25T00:00:00", score: "" },
+        { id: "Mecz17", group: "C", t1: "Szkocja", t2: "Brazylia", lock: "2026-06-25T00:00:00", score: "" },
         { id: "Mecz6", group: "A", t1: "RPA", t2: "Korea Płd.", lock: "2026-06-25T03:00:00", score: "" },
         { id: "Mecz5", group: "A", t1: "Czechy", t2: "Meksyk", lock: "2026-06-25T03:00:00", score: "" },
         { id: "Mecz29", group: "E", t1: "Curacao", t2: "WKS", lock: "2026-06-25T22:00:00", score: "" },
@@ -313,7 +315,6 @@
         const savedNick = localStorage.getItem('typerNick');
         updateGroupNav();
         
-        // Zawsze ładujemy najpierw bazę z Google Sheets
         loadAllScores().then(() => {
             if (savedNick) {
                 currentUser = savedNick;
@@ -331,29 +332,58 @@
         });
     }
 
+    // FUNKCJA PARSUJĄCA WSPÓLNA DLA OBU BAZ
+    function parseDatabaseResult(data) {
+        if (data && typeof data === 'object' && !Array.isArray(data) && data[KEY_NAME]) {
+            return data[KEY_NAME];
+        } else if (Array.isArray(data)) {
+            return data;
+        } else if (data && data.status === "error") {
+            console.error("Błąd z Google Sheets:", data.message);
+            return [];
+        }
+        return [];
+    }
+
     async function loadAllScores() {
         const loader = document.getElementById('loading-screen');
         if (loader && currentUser) loader.classList.remove('hidden');
 
         try {
-            const response = await fetch(API_URL);
-            if (!response.ok) {
-                throw new Error(`Serwer zwrócił status: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            console.log("Dane pobrane z bazy:", data);
+            // POBIERANIE Z OBU BAZ RÓWNOLEGLE (Żeby oszczędzić czas)
+            const [resGrupowa, resPucharowa] = await Promise.all([
+                fetch(API_URL_GRUPOWA).then(r => r.json()).catch(e => { console.error("Błąd bazy grupowej:", e); return []; }),
+                fetch(API_URL_PUCHAROWA).then(r => r.json()).catch(e => { console.error("Błąd bazy pucharowej:", e); return []; })
+            ]);
 
-            // Poprawka odporności na strukturę danych
-            if (data && typeof data === 'object' && !Array.isArray(data) && data[KEY_NAME]) {
-                existingDatabaseRows = data[KEY_NAME];
-            } else if (Array.isArray(data)) {
-                existingDatabaseRows = data;
-            } else if (data && data.status === "error") {
-                throw new Error(data.message || "Błąd skryptu Google Sheets");
-            } else {
-                existingDatabaseRows = [];
-            }
+            const rowsGrupowa = parseDatabaseResult(resGrupowa);
+            const rowsPucharowa = parseDatabaseResult(resPucharowa);
+
+            // SCALANIE DANYCH GRACZY Z OBU BAZ W JEDNĄ STRUKTURĘ
+            const mergedMap = {};
+
+            // Najpierw wczytujemy bazę grupową
+            rowsGrupowa.forEach(row => {
+                if (!row.gracz) return;
+                const nickKey = row.gracz.toLowerCase();
+                mergedMap[nickKey] = { ...row };
+            });
+
+            // Potem nakładamy bazę pucharową (lub dodajemy nowych graczy jeśli takich brakuje)
+            rowsPucharowa.forEach(row => {
+                if (!row.gracz) return;
+                const nickKey = row.gracz.toLowerCase();
+                if (mergedMap[nickKey]) {
+                    // Gracz istnieje - łączymy jego kolumny (wiersz pucharowy nadpisze/doda mecze pucharowe)
+                    mergedMap[nickKey] = { ...mergedMap[nickKey], ...row };
+                } else {
+                    // Nowy gracz, którego nie było w grupowej
+                    mergedMap[nickKey] = { ...row };
+                }
+            });
+
+            existingDatabaseRows = Object.values(mergedMap);
+            console.log("Dane połączone z obu baz:", existingDatabaseRows);
 
             if (loader) loader.classList.add('hidden');
 
@@ -367,7 +397,7 @@
         } catch (error) {
             console.error("Błąd ładowania danych:", error);
             if (loader) loader.classList.add('hidden');
-            alert(`Nie udało się pobrać danych!\nPowód: ${error.message}\n\nUpewnij się, że w Google Apps Script wdrożyłeś nową wersję jako "Anyone" (Każdy).`);
+            alert(`Nie udało się pobrać danych z baz danych!\nPowód: ${error.message}`);
         }
     }
 
@@ -450,8 +480,8 @@
             const row = document.createElement('div');
             row.className = "match-row";
             
-            const f1 = teamFlags[m.1] || teamFlags[m.t1] || "🏳️";
-            const f2 = teamFlags[m.2] || teamFlags[m.t2] || "🏳️";
+            const f1 = teamFlags[m.t1 || m.1] || "🏳️";
+            const f2 = teamFlags[m.t2 || m.2] || "🏳️";
             const team1Name = m.t1 || m.1;
             const team2Name = m.t2 || m.2;
 
@@ -479,7 +509,6 @@
         });
 
         const sBtn = document.getElementById('submit-btn');
-        // Jeśli wszystkie mecze w grupie są zablokowane czasowo
         const allLocked = matches.every(m => now > new Date(m.lock));
         
         if (allLocked) {
@@ -505,7 +534,6 @@
             localDraftScores[matchId] = "";
         }
         
-        // Dynamiczna weryfikacja przycisku wysyłania bez przerysowywania całości
         const activeGroupName = groupsOrder[currentGroupIndex];
         const groupMatches = allMatches.filter(m => m.group === activeGroupName);
         const allFilled = groupMatches.every(m => localDraftScores[m.id] && localDraftScores[m.id] !== "");
@@ -536,8 +564,13 @@
         sBtn.disabled = true;
         sBtn.innerText = "⏳ Wysyłanie do Google Sheets...";
 
+        // SYSTEM DECYDUJE, DO KTÓREJ BAZY WYSTAWIĆ ZAPIS:
+        // Jeśli aktualna sekcja to faza pucharowa, wysyła do nowej bazy, w innym wypadku do starej bazy.
+        const czyPucharowa = ["1/16", "1/8", "1/4", "1/2", "Finały"].includes(activeGroupName);
+        const targetApiUrl = czyPucharowa ? API_URL_PUCHAROWA : API_URL_GRUPOWA;
+
         try {
-            const res = await fetch(API_URL, {
+            await fetch(targetApiUrl, {
                 method: "POST",
                 mode: "no-cors",
                 headers: { "Content-Type": "application/json" },
@@ -546,7 +579,7 @@
 
             const box = document.createElement('div');
             box.className = "success-box";
-            box.innerText = `✔️ Typy dla sekcji "${activeGroupName}" zostały pomyślnie zapisane w bazie!`;
+            box.innerText = `✔️ Typy dla sekcji "${activeGroupName}" zostały zapisane w odpowiedniej bazie!`;
             
             const container = document.getElementById('submit-container');
             const oldBox = container.querySelector('.success-box');
@@ -555,7 +588,6 @@
 
             setTimeout(() => box.remove(), 6000);
             
-            // Ponowne pobranie tabeli głównej dla odświeżenia
             await loadAllScores();
 
         } catch (e) {
@@ -599,7 +631,6 @@
         thead.innerHTML = "";
         tbody.innerHTML = "";
 
-        // Filtrujemy mecze według wybranego widoku na dole tabeli
         let filteredMatches = [];
         if (currentTableView === "PUCHAROWA") {
             filteredMatches = allMatches.filter(m => ["1/16", "1/8", "1/4", "1/2", "Finały"].includes(m.group));
@@ -607,7 +638,6 @@
             filteredMatches = allMatches.filter(m => !["1/16", "1/8", "1/4", "1/2", "Finały"].includes(m.group));
         }
 
-        // Nagłówek tabeli głównej
         let headHtml = `<tr><th style="min-width:120px; background:#01c38d; color:#131927;">Gracz</th>`;
         filteredMatches.forEach(m => {
             const f1 = teamFlags[m.t1 || m.1] || "🏳️";
@@ -625,7 +655,6 @@
         headHtml += `</tr>`;
         thead.innerHTML = headHtml;
 
-        // Budowanie wierszy dla każdego gracza oraz liczenie klasyfikacji generalnej
         const playersLeaderboard = [];
 
         existingDatabaseRows.forEach(row => {
@@ -635,7 +664,7 @@
             let countExact = 0;
             let countTrend = 0;
 
-            // Obliczamy punkty globalnie dla WSZYSTKICH meczów (grupowych + pucharowych)
+            // Punkty liczone są ŁĄCZNIE ze wszystkich meczów (z obu baz połączonych)
             allMatches.forEach(m => {
                 const matchKey = m.id.toLowerCase();
                 const playerPrediction = row[matchKey] || "-";
@@ -646,7 +675,6 @@
                 if (evaluation.cssClass === "cell-trend") countTrend++;
             });
 
-            // Generowanie kodu HTML wiersza wyłącznie dla meczów z aktualnie filtrowanej fazy
             let rowHtml = `<td style="font-weight:bold; color:white; text-align:left; background:#1a2238; border-right:2px solid #2a3558;">👤 ${row.gracz}</td>`;
             filteredMatches.forEach(m => {
                 const matchKey = m.id.toLowerCase();
@@ -662,7 +690,6 @@
             playersLeaderboard.push({ name: row.gracz, points: totalPoints, exacts: countExact, trends: countTrend });
         });
 
-        // Sortowanie rankingu głównego
         playersLeaderboard.sort((a, b) => b.points !== a.points ? b.points - a.points : b.exacts - a.exacts);
         leaderboardBody.innerHTML = "";
         
