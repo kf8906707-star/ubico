@@ -67,14 +67,13 @@
         .progress-step:hover { background: #2a3558; color: white; }
         .progress-step.active { color: var(--bg); background: var(--primary); }
 
-        /* Style dla przełącznika widoku tabeli */
         .table-toggle-container { display: flex; justify-content: center; gap: 10px; margin-bottom: 15px; }
         .toggle-btn { background: #1a2238; color: #8a99ad; border: 1px solid #2a3558; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: bold; cursor: pointer; width: auto; margin: 0; }
         .toggle-btn.active { background: var(--primary); color: var(--bg); border-color: var(--primary); }
 
         @media (min-width: 500px) {
             .progress-bar { grid-template-columns: repeat(12, 1fr); gap: 4px; }
-            .progress-bar.pucharowa-grid { grid-template-columns: repeat(5, 1fr) !important; }
+            .progress-bar.pucharowa-grid { grid-template-columns: repeat(6, 1fr) !important; }
             .progress-step { padding: 6px 0; font-size: 12px; }
             .logo-container img { max-width: 240px; }
         }
@@ -155,9 +154,6 @@
 </div>
 
 <script>
-    // =================================================================
-    // 🎛️ PRZEŁĄCZNIK FAZY: Zmień na true, aby włączyć Fazę Pucharową!
-    // =================================================================
     const POKAZUJ_FAZE_PUCHAROWA = true; 
 
     // =========================================================
@@ -166,14 +162,13 @@
     const KEY_NAME = "sheet1"; 
     // =========================================================
 
-    // Dynamiczny podział etapów pucharowych zamiast liter grup
-    const groupsOrder = POKAZUJ_FAZE_PUCHAROWA ? ["1/16", "1/8", "1/4", "1/2", "Finały"] : ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
+    const groupsOrder = POKAZUJ_FAZE_PUCHAROWA ?
+        ["1/16", "1/8", "1/4", "1/2", "Finały", "STRZELCY"] : ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
     let currentGroupIndex = 0; 
     let localDraftScores = {}; 
     let existingDatabaseRows = [];
-    
-    // Zmienna trzymająca informację, który widok tabeli na dole jest obecnie włączony
     let currentTableView = POKAZUJ_FAZE_PUCHAROWA ? "PUCHAROWA" : "GRUPOWA";
+    let currentUser = "";
 
     const teamFlags = {
         "Meksyk": "🇲🇽", "RPA": "🇿🇦", "Korea Płd.": "🇰🇷", "Czechy": "🇨🇿", "Korea Południowa": "🇰🇷",
@@ -187,8 +182,85 @@
         "Francja": "🇫🇷", "Senegal": "🇸🇳", "Irak": "🇮🇶", "Norwegia": "🇳🇴",
         "Argentyna": "🇦🇷", "Algieria": "🇩🇿", "Austria": "🇦🇹", "Jordania": "JOR",
         "Portugalia": "🇵🇹", "DR Kongo": "🇨🇩", "DR Konga": "🇨🇩", "Uzbekistan": "🇺🇿", "Kolumbia": "🇨🇴",
-        "Anglia": "🏴󠁧󠁢󠁥󠁮󠁧󠁿", "Chorwacja": "🇭🇷", "Ghana": "🇬🇭", "Panama": "🇵🇦",
+        "Anglia": "🏴󠁧󠁢󠁥󠁮󠁧󠁿", "Chorwacja": "🇭🇷", "Ghana": "🇬🇭", "Panama": "🇵🇦", "Polska": "🇵🇱",
         "Zwycięzca": "🏆"
+    };
+
+    const fantasyPlayers = {
+        "Polska": [
+            { name: "Jan Bednarek", pos: "obrona", pts: 300 },
+            { name: "Jakub Kiwior", pos: "obrona", pts: 300 },
+            { name: "Piotr Zieliński", pos: "pomoc", pts: 150 },
+            { name: "Sebastian Szymański", pos: "pomoc", pts: 150 },
+            { name: "Robert Lewandowski", pos: "atak", pts: 80 },
+            { name: "Karol Świderski", pos: "atak", pts: 80 }
+        ],
+        "Brazylia": [
+            { name: "Marquinhos", pos: "obrona", pts: 300 },
+            { name: "Éder Militão", pos: "obrona", pts: 300 },
+            { name: "Bruno Guimarães", pos: "pomoc", pts: 150 },
+            { name: "Lucas Paquetá", pos: "pomoc", pts: 150 },
+            { name: "Vinícius Júnior", pos: "atak", pts: 80 },
+            { name: "Rodrygo", pos: "atak", pts: 80 }
+        ],
+        "Szkocja": [
+            { name: "Andrew Robertson", pos: "obrona", pts: 300 },
+            { name: "Scott McTominay", pos: "pomoc", pts: 150 },
+            { name: "John McGinn", pos: "pomoc", pts: 150 },
+            { name: "Ché Adams", pos: "atak", pts: 80 }
+        ],
+        "Niemcy": [
+            { name: "Antonio Rüdiger", pos: "obrona", pts: 300 },
+            { name: "Joshua Kimmich", pos: "pomoc", pts: 150 },
+            { name: "Florian Wirtz", pos: "pomoc", pts: 150 },
+            { name: "Jamal Musiala", pos: "pomoc", pts: 150 },
+            { name: "Niclas Füllkrug", pos: "atak", pts: 80 },
+            { name: "Kai Havertz", pos: "atak", pts: 80 }
+        ],
+        "Francja": [
+            { name: "William Saliba", pos: "obrona", pts: 300 },
+            { name: "Theo Hernández", pos: "obrona", pts: 300 },
+            { name: "Eduardo Camavinga", pos: "pomoc", pts: 150 },
+            { name: "Antoine Griezmann", pos: "atak", pts: 80 },
+            { name: "Kylian Mbappé", pos: "atak", pts: 80 },
+            { name: "Marcus Thuram", pos: "atak", pts: 80 }
+        ],
+        "Hiszpania": [
+            { name: "Dani Carvajal", pos: "obrona", pts: 300 },
+            { name: "Aymeric Laporte", pos: "obrona", pts: 300 },
+            { name: "Rodri", pos: "pomoc", pts: 150 },
+            { name: "Dani Olmo", pos: "pomoc", pts: 150 },
+            { name: "Lamine Yamal", pos: "atak", pts: 80 },
+            { name: "Nico Williams", pos: "atak", pts: 80 },
+            { name: "Álvaro Morata", pos: "atak", pts: 80 }
+        ],
+        "Argentyna": [
+            { name: "Cristian Romero", pos: "obrona", pts: 300 },
+            { name: "Nicolas Tagliafico", pos: "obrona", pts: 300 },
+            { name: "Alexis Mac Allister", pos: "pomoc", pts: 150 },
+            { name: "Enzo Fernández", pos: "pomoc", pts: 150 },
+            { name: "Lionel Messi", pos: "atak", pts: 80 },
+            { name: "Lautaro Martínez", pos: "atak", pts: 80 },
+            { name: "Julián Álvarez", pos: "atak", pts: 80 }
+        ],
+        "Anglia": [
+            { name: "John Stones", pos: "obrona", pts: 300 },
+            { name: "Trent Alexander-Arnold", pos: "obrona", pts: 300 },
+            { name: "Jude Bellingham", pos: "pomoc", pts: 150 },
+            { name: "Declan Rice", pos: "pomoc", pts: 150 },
+            { name: "Phil Foden", pos: "pomoc", pts: 150 },
+            { name: "Harry Kane", pos: "atak", pts: 80 },
+            { name: "Bukayo Saka", pos: "atak", pts: 80 }
+        ],
+        "Portugalia": [
+            { name: "Rúben Dias", pos: "obrona", pts: 300 },
+            { name: "João Cancelo", pos: "obrona", pts: 300 },
+            { name: "Bruno Fernandes", pos: "pomoc", pts: 150 },
+            { name: "Bernardo Silva", pos: "pomoc", pts: 150 },
+            { name: "Cristiano Ronaldo", pos: "atak", pts: 80 },
+            { name: "Rafael Leão", pos: "atak", pts: 80 },
+            { name: "Gonçalo Ramos", pos: "atak", pts: 80 }
+        ]
     };
 
     const allMatches = [
@@ -309,163 +381,207 @@
         { id: "Mecz104", group: "Finały", t1: "Zwycięzca M101", t2: "Zwycięzca M102", lock: "2026-07-19T21:00:00", score: "" }
     ];
 
-    function getFlagAnd3LetterCode(teamName) {
-        if (!teamName) return "???";
-        const flag = teamFlags[teamName] || "";
-        return `${flag} ${teamName.substring(0, 3).toUpperCase()}`;
-    }
-
-    function refreshTwemoji() {
-        if (window.twemoji) {
+    window.onload = function() {
+        if(typeof twemoji !== 'undefined') {
             twemoji.parse(document.body, { folder: 'svg', ext: '.svg' });
         }
+        loadAllScores();
+    };
+
+    function showLoading(show) {
+        document.getElementById('loading-screen').className = show ? "card" : "card hidden";
+    }
+
+    async function loadAllScores() {
+        showLoading(true);
+        try {
+            const response = await fetch(`${API_URL}?akcja=pobierzWszystko&arkusz=${KEY_NAME}`);
+            const data = await response.json();
+            existingDatabaseRows = data;
+
+            if (currentUser) {
+                fillLocalDraftFromDatabase();
+                updateGroupNav();
+                renderActiveGroup();
+            } else {
+                document.getElementById('login-screen').className = "card";
+            }
+            renderScoresTable();
+        } catch (error) {
+            console.error("Błąd ładowania danych:", error);
+            alert("Nie udało się pobrać danych z Google Sheets.");
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    function loginUser() {
+        const input = document.getElementById('nick-input').value.trim();
+        if (!input) {
+            alert("Podaj swój Nick!");
+            return;
+        }
+        currentUser = input;
+        document.getElementById('user-display').innerText = currentUser;
+        document.getElementById('login-screen').className = "card hidden";
+        document.getElementById('app-screen').className = "";
+
+        fillLocalDraftFromDatabase();
+        updateGroupNav();
+        renderActiveGroup();
     }
 
     function isGroupSubmittedByPlayer(groupLetter) {
-        const nick = localStorage.getItem('typerNick') || "";
-        // Podmieniamy ukośnik na bezpieczny znak w kluczu localStorage dla 1/16 itd.
-        const safeLetter = groupLetter.replace("/", "-");
-        return localStorage.getItem(`submitted_group_${safeLetter.toLowerCase()}_${nick.toLowerCase()}`) === "true";
-    }
+        const userRow = existingDatabaseRows.find(r => r.gracz && r.gracz.trim().toLowerCase() === currentUser.toLowerCase());
+        if (!userRow) return false;
 
-    async function initApp() {
-        try {
-            await loadAllScores();
-        } catch (e) {
-            console.error("Błąd pobierania bazy przy starcie:", e);
+        if (groupLetter === "STRZELCY") {
+            return userRow["fantasy_strzelec"] && userRow["fantasy_strzelec"] !== "" && userRow["fantasy_strzelec"] !== "-";
         }
 
-        document.getElementById('loading-screen').classList.add('hidden');
-        const savedNick = localStorage.getItem('typerNick');
-        if (savedNick) { 
-            showApp(savedNick);
-        } else {
-            document.getElementById('login-screen').classList.remove('hidden');
-            refreshTwemoji();
-        }
-    }
+        const groupMatches = allMatches.filter(m => m.group === groupLetter);
+        if(groupMatches.length === 0) return false;
 
-    window.onload = initApp;
-
-    function loginUser() {
-        const nickInput = document.getElementById('nick-input');
-        const nick = nickInput.value.trim();
-        if (nick.length < 3) return alert('Nick musi mieć min. 3 znaki!');
-
-        localStorage.setItem('typerNick', nick);
-        document.getElementById('login-screen').classList.add('hidden');
-        showApp(nick);
-    }
-
-    function showApp(nick) {
-        document.getElementById('app-screen').classList.remove('hidden');
-        document.getElementById('user-display').innerText = nick;
-        
-        fillLocalDraftFromDatabase(nick);
-        renderProgressBar();
-        renderActiveGroup();
-    }
-
-    function fillLocalDraftFromDatabase(nick) {
-        if (!existingDatabaseRows || existingDatabaseRows.length === 0) return;
-        const userRow = existingDatabaseRows.find(r => r.gracz && r.gracz.toLowerCase() === nick.toLowerCase());
-        if (userRow) {
-            groupsOrder.forEach(g => {
-                const groupMatches = allMatches.filter(m => m.group === g);
-                let hasAtLeastOnePrediction = false;
-
-                groupMatches.forEach(m => {
-                    const matchKey = m.id.toLowerCase();
-                    const score = userRow[matchKey]; 
-                    if (score && score.includes(":")) {
-                        const parts = score.split(":");
-                        localDraftScores[`home-${m.id}`] = parts[0].trim();
-                        localDraftScores[`away-${m.id}`] = parts[1].trim();
-                        hasAtLeastOnePrediction = true;
-                    }
-                });
-
-                if (hasAtLeastOnePrediction) {
-                    const safeLetter = g.replace("/", "-");
-                    localStorage.setItem(`submitted_group_${safeLetter.toLowerCase()}_${nick.toLowerCase()}`, "true");
-                }
-            });
-        }
-    }
-
-    function renderProgressBar() {
-        const bar = document.getElementById('steps-bar');
-        bar.innerHTML = "";
-        
-        // Dodatkowa klasa CSS ułatwiająca rozłożenie 5 przycisków pucharowych na desktopie/mobile
-        if (POKAZUJ_FAZE_PUCHAROWA) {
-            bar.classList.add('pucharowa-grid');
-        } else {
-            bar.classList.remove('pucharowa-grid');
-        }
-
-        groupsOrder.forEach((g, idx) => {
-            const span = document.createElement('span');
-            const isDone = isGroupSubmittedByPlayer(g);
-            span.className = `progress-step ${idx === currentGroupIndex ? 'active' : ''}`;
-            span.innerText = isDone ? `${g} ✓` : g; 
-            span.onclick = () => changeGroup(idx);
-            bar.appendChild(span);
+        let allFound = true;
+        groupMatches.forEach(m => {
+            const matchKey = m.id.toLowerCase();
+            if (!userRow[matchKey] || userRow[matchKey] === "" || userRow[matchKey] === "-") {
+                allFound = false;
+            }
         });
+        return allFound;
     }
 
-    function changeGroup(targetIndex) {
-        saveCurrentInputsToDraft();
-        currentGroupIndex = targetIndex;
-        renderProgressBar();
-        renderActiveGroup();
-    }
+    function fillLocalDraftFromDatabase() {
+        localDraftScores = {};
+        const userRow = existingDatabaseRows.find(r => r.gracz && r.gracz.trim().toLowerCase() === currentUser.toLowerCase());
+        if (!userRow) return;
 
-    function saveCurrentInputsToDraft() {
-        const currentLetter = groupsOrder[currentGroupIndex];
-        if (isGroupSubmittedByPlayer(currentLetter)) return;
+        if (userRow["fantasy_strzelec"]) {
+            localDraftScores["fantasy_strzelec"] = userRow["fantasy_strzelec"];
+        }
 
-        const rows = document.querySelectorAll('.match-row');
-        rows.forEach(row => {
-            const id = row.getAttribute('data-id');
-            const isLocked = row.getAttribute('data-locked') === "true";
-            if (!isLocked) {
-                const homeInput = row.querySelector('.home-team');
-                const awayInput = row.querySelector('.away-team');
-                if(homeInput && awayInput) {
-                    localDraftScores[`home-${id}`] = homeInput.value;
-                    localDraftScores[`away-${id}`] = awayInput.value;
-                }
+        allMatches.forEach(m => {
+            const matchKey = m.id.toLowerCase();
+            const val = userRow[matchKey];
+            if (val && val.includes(":")) {
+                const parts = val.split(":");
+                localDraftScores[`home-${m.id}`] = parts[0].trim();
+                localDraftScores[`away-${m.id}`] = parts[1].trim();
             }
         });
     }
 
-    function renderActiveGroup() {
-        const currentLetter = groupsOrder[currentGroupIndex];
-        
+    function updateGroupNav() {
+        const navContainer = document.getElementById('steps-bar');
+        navContainer.innerHTML = "";
         if (POKAZUJ_FAZE_PUCHAROWA) {
-            document.getElementById('group-title').innerText = `🏆 FAZA PUCHAROWA — ETAP ${currentLetter}`;
+            navContainer.classList.add('pucharowa-grid');
         } else {
-            document.getElementById('group-title').innerText = `🏆 FAZA GRUPOWA — GRUPA ${currentLetter}`;
+            navContainer.classList.remove('pucharowa-grid');
         }
         
-        const container = document.getElementById('matches-list');
-        container.innerHTML = "";
-        const now = new Date();
-        const groupMatches = allMatches.filter(m => m.group === currentLetter);
-        const isGroupPermanentlyLocked = isGroupSubmittedByPlayer(currentLetter);
-        
-        groupMatches.forEach((match, index) => {
-            const lockTime = new Date(match.lock);
-            const isLocked = (now >= lockTime) || isGroupPermanentlyLocked;
+        const is116Submitted = isGroupSubmittedByPlayer("1/16");
 
+        groupsOrder.forEach((gKey, idx) => {
+            if (gKey === "STRZELCY" && !is116Submitted) return;
+
+            const stepDiv = document.createElement('div');
+            const isDone = isGroupSubmittedByPlayer(gKey);
+            stepDiv.className = `progress-step ${idx === currentGroupIndex ? 'active' : ''}`;
+            stepDiv.innerText = (isDone ? "✅ " : "") + gKey;
+            stepDiv.onclick = () => {
+                currentGroupIndex = idx;
+                updateGroupNav();
+                renderActiveGroup();
+            };
+            navContainer.appendChild(stepDiv);
+        });
+    }
+
+    function renderActiveGroup() {
+        const matchesContainer = document.getElementById('matches-list');
+        const currentLetter = groupsOrder[currentGroupIndex];
+        
+        document.getElementById('group-title').innerText = currentLetter === "STRZELCY" ? "⚽ SELEKCJA STRZELCA FANTASY" : `FAZA: ${currentLetter}`;
+
+        // --- DEDYKOWANA LOGIKA INTERFEJSU DLA STRZELCÓW FANTASY ---
+        if (currentLetter === "STRZELCY") {
+            let html = `
+                <div style="background: rgba(1, 195, 141, 0.05); padding: 15px; border-radius: 8px; margin-bottom: 15px; text-align: center; border: 1px dashed var(--primary);">
+                    <p style="font-size: 13px; color: #aaa; margin: 0 0 10px 0;">Wybierz jedną reprezentację, a następnie wskaż swojego snajpera. Punkty zależą bezpośrednio od jego pozycji na boisku!</p>
+                    <div style="margin: 10px 0; padding: 10px; background: #131927; border-radius: 6px; font-weight: bold; font-size:14px;">
+                        Twój aktualny wybór: <span id="current-chosen-player" style="color:var(--primary)">${localDraftScores['fantasy_strzelec'] || 'Brak wyboru'}</span>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin-bottom: 15px;">
+            `;
+            
+            Object.keys(fantasyPlayers).forEach(country => {
+                const flag = teamFlags[country] || "";
+                html += `
+                    <button onclick="toggleFantasyCountry('${country}')" style="background:#2a3558; color:white; padding: 10px; font-size:12px; margin:0; font-weight: bold;">
+                        ${flag} ${country}
+                    </button>
+                `;
+            });
+            
+            html += `</div><div id="fantasy-players-pool"></div>`;
+            
+            const isLocked = new Date() > new Date("2026-06-29T18:00:00");
+            const isSubmitted = isGroupSubmittedByPlayer("STRZELCY");
+
+            if (isSubmitted) {
+                html = `<div class="success-box">🔒 Twój strzelec został zatwierdzony i przesłany do bazy danych!</div>` + html;
+                document.getElementById('submit-container').innerHTML = "";
+            } else if (!isLocked) {
+                document.getElementById('submit-container').innerHTML = `
+                    <button id="submit-btn" onclick="submitFantasyStrzelec()" class="submit-btn" style="width:100%; margin-top:15px; background:var(--primary); color:var(--bg)">
+                        Zatwierdź i Wyślij Strzelca
+                    </button>
+                `;
+            } else {
+                html = `<p style="color:var(--danger); text-align:center; font-weight:bold;">Rejestracja strzelców została zablokowana (czas minął)!</p>` + html;
+                document.getElementById('submit-container').innerHTML = "";
+            }
+
+            matchesContainer.innerHTML = html;
+            if(typeof twemoji !== 'undefined') twemoji.parse(matchesContainer, { folder: 'svg', ext: '.svg' });
+            return;
+        }
+
+        // --- STANDARDOWA LOGIKA DLA FAZ MECZOWYCH ---
+        const groupMatches = allMatches.filter(m => m.group === currentLetter);
+        matchesContainer.innerHTML = "";
+
+        const isGroupSubmitted = isGroupSubmittedByPlayer(currentLetter);
+
+        if (isGroupSubmitted) {
+            const successDiv = document.createElement('div');
+            successDiv.className = "success-box";
+            successDiv.innerText = "🔒 Typy dla tej fazy zostały pomyślnie wysłane do Google Sheets.";
+            matchesContainer.appendChild(successDiv);
+        }
+
+        groupMatches.forEach((match, index) => {
             const div = document.createElement('div');
             div.className = "match-row";
             div.setAttribute('data-id', match.id);
-            div.setAttribute('data-locked', isLocked);
-            
-            const nextMatch = groupMatches[index + 1];
-            const nextMatchId = nextMatch ? nextMatch.id : null;
+
+            const now = new Date();
+            const lockDate = new Date(match.lock);
+            const isLocked = now > lockDate || isGroupSubmitted;
+            div.setAttribute('data-locked', isLocked ? "true" : "false");
+
+            let statusMessage = "";
+            if (isGroupSubmitted) {
+                statusMessage = `<span class="submitted-text">Wysłano</span>`;
+            } else if (now > lockDate) {
+                statusMessage = `<span class="locked-text">Zablokowany (Czas minął)</span>`;
+            } else {
+                const formattedTime = lockDate.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+                statusMessage = `Koniec typowania: ${formattedTime}`;
+            }
 
             const savedHome = localDraftScores[`home-${match.id}`] || "";
             const savedAway = localDraftScores[`away-${match.id}`] || "";
@@ -473,19 +589,11 @@
             const f1 = teamFlags[match.t1] || "";
             const f2 = teamFlags[match.t2] || "";
 
-            let officialResultText = "";
-            if(match.score && match.score !== "") {
-                officialResultText = ` <b style="color:var(--primary)">[Wynik: ${match.score}]</b>`;
-            }
+            let officialResultText = (match.score && match.score !== "") ? ` <b style="color:var(--primary)">[Wynik: ${match.score}]</b>` : "";
+            let dopisekPucharowy = POKAZUJ_FAZE_PUCHAROWA ? `<span style="font-size:10px; color:var(--primary); font-weight:bold; text-transform:uppercase; margin-bottom:2px;">${match.id.replace('Mec', 'MECZ ')}</span>` : "";
 
-            let statusMessage = '⏰ Start PL: ' + match.lock.replace('T', ' ');
-            if (now >= lockTime) {
-                statusMessage = '<span class="locked-text">🔒 ZABLOKOWANY (Czas minął)</span>';
-            } else if (isGroupPermanentlyLocked) {
-                statusMessage = '<span class="submitted-text">🔒 ZABLOKOWANY (Wysłano)</span>';
-            }
-
-            const dopisekPucharowy = POKAZUJ_FAZE_PUCHAROWA ? `<div style="font-size: 10px; color: #01c38d; margin-bottom: 2px;">Mecz nr ${match.id.replace('Mecz','')} | *wynik po ew. dogrywce/karnych</div>` : '';
+            const nextMatch = groupMatches[index + 1];
+            const nextMatchId = nextMatch ? nextMatch.id : "";
 
             div.innerHTML = `
                 <div class="match-info">
@@ -499,81 +607,158 @@
                     <input type="number" class="away-team" id="away-${match.id}" min="0" placeholder="-" value="${savedAway}" ${isLocked ? 'disabled' : ''} oninput="handleAwayInput('${match.id}', '${nextMatchId}')">
                 </div>
             `;
-            container.appendChild(div);
+            matchesContainer.appendChild(div);
         });
 
-        validateGroupCompletion();
-        refreshTwemoji(); 
+        if(typeof twemoji !== 'undefined') {
+            twemoji.parse(matchesContainer, { folder: 'svg', ext: '.svg' });
+        }
+
+        if (isGroupSubmitted) {
+            document.getElementById('submit-container').innerHTML = "";
+        } else {
+            document.getElementById('submit-container').innerHTML = `
+                <button id="submit-btn" onclick="submitCurrentGroup()" style="margin-top: 25px; font-size: 18px; box-shadow: 0 4px 10px rgba(1, 195, 141, 0.3);" disabled>
+                    Wypełnij wszystkie mecze grupy
+                </button>
+            `;
+            validateGroupCompletion();
+        }
+    }
+
+    function toggleFantasyCountry(country) {
+        const pool = document.getElementById('fantasy-players-pool');
+        const players = fantasyPlayers[country];
+        if (!players) return;
+
+        const roles = {
+            "obrona": { title: "🛡️ OBROŃCY", list: [] },
+            "pomoc": { title: "⚙️ POMOCNICY", list: [] },
+            "atak": { title: "🔥 NAPASTNICY", list: [] }
+        };
+
+        players.forEach(p => roles[p.pos].list.push(p));
+
+        let html = `<div style="background: var(--card); padding: 15px; border-radius: 8px; margin-top:10px; border:1px solid #2a3558;">`;
+        html += `<h4 style="margin: 0 0 10px 0; text-align:center; color: var(--primary);">${teamFlags[country] || ""} ${country}</h4>`;
+
+        Object.keys(roles).forEach(roleKey => {
+            const role = roles[roleKey];
+            if (role.list.length === 0) return;
+
+            html += `<div style="margin-top: 12px; font-size: 11px; font-weight: bold; color: var(--primary); text-transform: uppercase; letter-spacing:1px;">${role.title}</div>`;
+            
+            role.list.forEach(p => {
+                html += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #2a3558;">
+                        <span style="font-size:13px;">${p.name}</span>
+                        <button onclick="selectFantasyPlayer('${p.name} (${country})')" style="padding: 4px 10px; font-size: 11px; width:auto; margin:0; background:#2a3558; color:white;">
+                            Wybierz (+${p.pts} pkt/gol)
+                        </button>
+                    </div>
+                `;
+            });
+        });
+
+        html += `</div>`;
+        pool.innerHTML = html;
+        if(typeof twemoji !== 'undefined') twemoji.parse(pool, { folder: 'svg', ext: '.svg' });
+    }
+
+    function selectFantasyPlayer(fullName) {
+        localDraftScores['fantasy_strzelec'] = fullName;
+        document.getElementById('current-chosen-player').innerText = fullName;
+    }
+
+    async function submitFantasyStrzelec() {
+        const playerName = localDraftScores['fantasy_strzelec'];
+        if (!playerName || playerName === "") {
+            alert("Najpierw musisz wybrać jakiegoś piłkarza z listy!");
+            return;
+        }
+
+        showLoading(true);
+        const updateData = {
+            akcja: "zapiszTypy",
+            gracz: currentUser,
+            "fantasy_strzelec": playerName
+        };
+
+        try {
+            await fetch(API_URL, {
+                method: "POST",
+                mode: "cors",
+                headers: { "Content-Type": "text/plain" },
+                body: JSON.stringify(updateData)
+            });
+            alert("Twój strzelec Fantasy został pomyślnie wysłany!");
+            loadAllScores();
+        } catch(e) {
+            console.error(e);
+            alert("Błąd zapisu danych.");
+        } finally {
+            showLoading(false);
+        }
     }
 
     function handleHomeInput(matchId) {
-        const homeInput = document.getElementById(`home-${matchId}`);
-        if (homeInput && homeInput.value !== "") {
-            const awayInput = document.getElementById(`away-${matchId}`);
-            if(awayInput) awayInput.focus();
-        }
-        saveCurrentInputsToDraft();
+        const homeVal = document.getElementById(`home-${matchId}`).value;
+        localDraftScores[`home-${matchId}`] = homeVal;
         validateGroupCompletion();
     }
 
-    function handleAwayInput(currentMatchId, nextMatchId) {
-        const awayInput = document.getElementById(`away-${currentMatchId}`);
-        if (awayInput && awayInput.value !== "" && nextMatchId) {
-            const nextHomeInput = document.getElementById(`home-${nextMatchId}`);
-            if (nextHomeInput && !nextHomeInput.disabled) { nextHomeInput.focus(); }
-        }
-        saveCurrentInputsToDraft();
+    function handleAwayInput(matchId, nextMatchId) {
+        const awayVal = document.getElementById(`away-${matchId}`).value;
+        localDraftScores[`away-${matchId}`] = awayVal;
         validateGroupCompletion();
+
+        if (awayVal !== "" && nextMatchId) {
+            const nextHomeInput = document.getElementById(`home-${nextMatchId}`);
+            if (nextHomeInput && !nextHomeInput.disabled && nextHomeInput.value === "") {
+                nextHomeInput.focus();
+            }
+        }
     }
 
     function validateGroupCompletion() {
         const currentLetter = groupsOrder[currentGroupIndex];
-        const submitContainer = document.getElementById('submit-container');
+        if (currentLetter === "STRZELCY") return;
 
-        if (isGroupSubmittedByPlayer(currentLetter)) {
-            submitContainer.innerHTML = `<div class="success-box">⭐ Twoje typy na ten etap zostały już zatwierdzone i zablokowane!</div>`;
-            return;
-        }
-
-        submitContainer.innerHTML = `
-            <button id="submit-btn" onclick="submitCurrentGroup()" style="margin-top: 25px; font-size: 18px; box-shadow: 0 4px 10px rgba(1, 195, 141, 0.3);" disabled>
-                Wypełnij wszystkie mecze
-            </button>
-        `;
-        const rows = document.querySelectorAll('.match-row');
+        const groupMatches = allMatches.filter(m => m.group === currentLetter);
         let allFilled = true;
-        rows.forEach(row => {
-            const isLocked = row.getAttribute('data-locked') === "true";
-            if (!isLocked) {
-                const homeInput = row.querySelector('.home-team');
-                const awayInput = row.querySelector('.away-team');
-                if (homeInput && awayInput && (homeInput.value === "" || awayInput.value === "")) {
-                    allFilled = false;
-                }
+
+        groupMatches.forEach(m => {
+            const homeVal = localDraftScores[`home-${m.id}`];
+            const awayVal = localDraftScores[`away-${m.id}`];
+            if (homeVal === undefined || awayVal === undefined || homeVal === "" || awayVal === "") {
+                allFilled = false;
             }
         });
+
         const btn = document.getElementById('submit-btn');
         if (btn) {
             if (allFilled) {
                 btn.removeAttribute('disabled');
-                btn.innerText = currentGroupIndex === groupsOrder.length - 1 ? "💾 Zapisz i Zakończ Typowanie!" : `💾 Zapisz i przejdź do etapu: ${groupsOrder[currentGroupIndex + 1]}`;
+                btn.innerText = `Zatwierdź i Wyślij Fazę ${currentLetter}`;
             } else {
                 btn.setAttribute('disabled', 'true');
-                btn.innerText = "Wpisz wszystkie otwarte wyniki, aby przejść dalej";
+                btn.innerText = "Wypełnij wszystkie mecze fazy";
             }
         }
     }
 
     async function submitCurrentGroup() {
         const currentLetter = groupsOrder[currentGroupIndex];
-        const nick = localStorage.getItem('typerNick');
+        const groupMatches = allMatches.filter(m => m.group === currentLetter);
+        
+        showLoading(true);
 
-        if (isGroupSubmittedByPlayer(currentLetter)) return;
+        const updateData = {
+            akcja: "zapiszTypy",
+            gracz: currentUser
+        };
 
-        saveCurrentInputsToDraft();
-
-        const updateData = { "gracz": nick };
-        allMatches.forEach(m => {
+        groupMatches.forEach(m => {
             const matchKey = m.id.toLowerCase();
             const homeVal = localDraftScores[`home-${m.id}`];
             const awayVal = localDraftScores[`away-${m.id}`];
@@ -583,82 +768,72 @@
                 updateData[matchKey] = ""; 
             }
         });
-        const btn = document.getElementById('submit-btn');
 
         try {
-            if (btn) {
-                btn.setAttribute('disabled', 'true');
-                btn.innerText = "Wysyłanie do bazy...";
-            }
-
-            const res = await fetch(API_URL, {
-                method: 'POST',
+            const response = await fetch(API_URL, {
+                method: "POST",
+                mode: "cors",
+                headers: { "Content-Type": "text/plain" },
                 body: JSON.stringify(updateData)
             });
-            const responseData = await res.json();
-
-            if (responseData.status === "error") {
-                throw new Error(responseData.message || "Błąd wewnętrzny bazy Google Sheets");
-            }
-
-            const safeLetter = currentLetter.replace("/", "-");
-            localStorage.setItem(`submitted_group_${safeLetter.toLowerCase()}_${nick.toLowerCase()}`, "true");
-            
-            const indexToUpdate = existingDatabaseRows.findIndex(r => r.gracz && r.gracz.toLowerCase() === nick.toLowerCase());
-            if(indexToUpdate !== -1) {
-                Object.assign(existingDatabaseRows[indexToUpdate], updateData);
-            } else {
-                existingDatabaseRows.push(updateData);
-            }
-
-            if (currentGroupIndex < groupsOrder.length - 1) {
-                alert(`Etap ${groupsOrder[currentGroupIndex]} został zapisany i ZABLOKOWANY przed zmianami! 🚀`);
-                currentGroupIndex++;
-                renderProgressBar(); renderActiveGroup(); 
-                try { await loadAllScores(); } catch(e){}
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            } else {
-                alert("Wszystkie Twoje typy na ten etap zostały oficjalnie zapisane i zablokowane! Powodzenia! 🎉");
-                renderProgressBar(); renderActiveGroup();
-                try { await loadAllScores(); } catch(e){}
-            }
-
+            const resultText = await response.text();
+            alert(`Dane dla Fazy ${currentLetter} zostały zapisane!`);
+            loadAllScores();
         } catch (error) {
-            console.error(error);
-            alert('❌ Błąd zapisu! Dane NIE trafiły do bazy danych. Powód: ' + error.message);
-            if (btn) btn.removeAttribute('disabled');
-            validateGroupCompletion();
+            console.error("Błąd zapisu:", error);
+            alert("Wystąpił problem podczas wysyłania typów.");
+            showLoading(false);
         }
     }
 
-    function evaluatePrediction(playerPrediction, officialResult) {
+    function evaluatePrediction(playerPrediction, officialResult, matchGroup) {
         if (!officialResult || officialResult === "" || !playerPrediction || playerPrediction === "-" || !playerPrediction.includes(":")) {
             return { points: 0, cssClass: "", type: "none" };
         }
-        if (playerPrediction.trim() === officialResult.trim()) {
-            return { points: 45, cssClass: "cell-exact", type: "exact" };
+
+        let exactPoints = 0;
+        let trendPoints = 0;
+
+        if (matchGroup === "1/16") {
+            exactPoints = 90;
+            trendPoints = 60;
+        } else if (matchGroup === "1/8") {
+            exactPoints = 135;
+            trendPoints = 90;
+        } else if (matchGroup === "1/4") {
+            exactPoints = 180;
+            trendPoints = 120;
+        } else if (matchGroup === "1/2") {
+            exactPoints = 225;
+            trendPoints = 150;
+        } else if (matchGroup === "Finały") {
+            exactPoints = 270;
+            trendPoints = 180;
+        } else {
+            exactPoints = 45;
+            trendPoints = 30;
         }
+
+        if (playerPrediction.trim() === officialResult.trim()) {
+            return { points: exactPoints, cssClass: "cell-exact", type: "exact" };
+        }
+
         const [pHome, pAway] = playerPrediction.split(":").map(Number);
         const [oHome, oAway] = officialResult.split(":").map(Number);
         const playerTrend = pHome > pAway ? 1 : (pHome < pAway ? -1 : 0);
         const officialTrend = oHome > oAway ? 1 : (oHome < oAway ? -1 : 0);
+
         if (playerTrend === officialTrend) {
-            return { points: 30, cssClass: "cell-trend", type: "trend" };
+            return { points: trendPoints, cssClass: "cell-trend", type: "trend" };
         }
+
         return { points: 0, cssClass: "cell-miss", type: "miss" };
     }
 
-    // Funkcja zmieniająca widok tabeli na dole (Grupowa vs Pucharowa)
     function setTableView(viewMode) {
         currentTableView = viewMode;
-        renderScoresTable();
-    }
-
-    async function loadAllScores() {
-        const response = await fetch(API_URL);
-        const data = await response.json();
-        existingDatabaseRows = data[KEY_NAME] || [];
-        
+        document.getElementById('toggle-tab-grupowa').className = viewMode === 'GRUPOWA' ? 'toggle-btn active' : 'toggle-btn';
+        document.getElementById('toggle-tab-pucharowa').className = viewMode === 'PUCHAROWA' ? 'toggle-btn active' : 'toggle-btn';
         renderScoresTable();
     }
 
@@ -666,99 +841,130 @@
         const thead = document.getElementById('table-head');
         const tbody = document.getElementById('table-body');
         const leaderboardBody = document.getElementById('leaderboard-body');
-
-        // Aktualizacja wyglądu przycisków przełącznika
-        document.getElementById('toggle-tab-grupowa').classList.remove('active');
-        document.getElementById('toggle-tab-pucharowa').classList.remove('active');
-        if (currentTableView === "GRUPOWA") {
-            document.getElementById('toggle-tab-grupowa').classList.add('active');
-        } else {
-            document.getElementById('toggle-tab-pucharowa').classList.add('active');
-        }
-
-        // Filtrowanie meczów do wyświetlenia w tabeli na podstawie wybranego trybu widoku
-        const meczeDoTabeli = allMatches.filter(m => {
-            const czyPucharowy = ["1/16", "1/8", "1/4", "1/2", "Finały"].includes(m.group);
-            return currentTableView === "PUCHAROWA" ? czyPucharowy : !czyPucharowy;
-        });
-
-        // Generowanie nagłówków tabeli
-        thead.innerHTML = "";
-        const trHead = document.createElement('tr');
-        trHead.innerHTML = "<th style='position:sticky; left:0; background:#1a2238; z-index:3;'>Gracz</th>";
         
-        meczeDoTabeli.forEach(m => {
-            const homeFormat = getFlagAnd3LetterCode(m.t1);
-            const awayFormat = getFlagAnd3LetterCode(m.t2);
-            const resultSub = m.score ? `<br><span style="color:#01c38d; font-size:10px;">(${m.score})</span>` : '';
-            trHead.innerHTML += `
-                <th>
-                    <div class="th-match-header" style="flex-direction:column;">
-                        <div style="font-size:9px; color:#8a99ad; margin-bottom:2px;">${m.group}</div>
-                        <div>${homeFormat}-${awayFormat}</div>
-                        ${resultSub}
-                    </div>
-                </th>`;
+        thead.innerHTML = "";
+        tbody.innerHTML = "";
+        
+        const officialRow = existingDatabaseRows.find(r => r.gracz && r.gracz.trim().toLowerCase() === "admin") || {};
+        const playerRows = existingDatabaseRows.filter(r => r.gracz && r.gracz.trim().toLowerCase() !== "admin");
+
+        const filteredMatches = allMatches.filter(m => {
+            const jestPucharowy = ["1/16", "1/8", "1/4", "1/2", "Finały"].includes(m.group);
+            return currentTableView === "PUCHAROWA" ? jestPucharowy : !jestPucharowy;
         });
-        thead.appendChild(trHead);
+
+        // Budowa nagłówka tabeli
+        let headHtml = `<tr><th style="min-width:140px; text-align:left;">Gracz</th>`;
+        if (currentTableView === "PUCHAROWA") {
+            headHtml += `<th style="min-width:150px; color:var(--primary);">⚽ STRZELEC FANTASY</th>`;
+        }
+        
+        filteredMatches.forEach(m => {
+            const f1 = teamFlags[m.t1] || "";
+            const f2 = teamFlags[m.t2] || "";
+            headHtml += `
+                <th>
+                    <div class="th-match-header">
+                        <span>${f1} vs ${f2}</span>
+                    </div>
+                    <div style="font-size:10px; color:#8a99ad; margin-top:2px;">${m.score || '-'}</div>
+                </th>
+            `;
+        });
+        headHtml += `</tr>`;
+        thead.innerHTML = headHtml;
 
         let playersLeaderboard = [];
-        tbody.innerHTML = "";
 
-        if (!Array.isArray(existingDatabaseRows) || existingDatabaseRows.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="${meczeDoTabeli.length + 1}">Brak wpisów w bazie danych.</td></tr>`;
-            leaderboardBody.innerHTML = "<tr><td colspan='3'>Brak danych do stworzenia rankingu.</td></tr>";
-            refreshTwemoji();
-            return;
-        }
+        playerRows.forEach(row => {
+            let totalPoints = 0;
+            let countExact = 0;
+            let countTrend = 0;
 
-        existingDatabaseRows.forEach(row => {
-            if (!row.gracz) return;
-            let totalPoints = 0, countExact = 0, countTrend = 0;
-            const tr = document.createElement('tr');
-            let rowHtml = `<td style="font-weight:bold; color:#01c38d; position:sticky; left:0; background:#131927; z-index:1;">${row.gracz}</td>`;
-            
-            // Punkty zliczamy ZAWSZE ze wszystkich meczów (cały turniej)
+            // Obliczanie punktów ze wszystkich 104 meczów (zarówno grupy jak i pucharowa)
             allMatches.forEach(m => {
                 const matchKey = m.id.toLowerCase();
                 const playerPrediction = row[matchKey] || '-';
-                const evaluation = evaluatePrediction(playerPrediction, m.score);
+                const officialResult = m.score || '';
+                
+                const evaluation = evaluatePrediction(playerPrediction, officialResult, m.group);
                 totalPoints += evaluation.points;
-               
+                
                 if (evaluation.type === "exact") countExact++;
                 if (evaluation.type === "trend") countTrend++;
             });
 
-            // Ale w samej tabeli HTML rysujemy tylko kolumny z aktualnie wybranego widoku
-            meczeDoTabeli.forEach(m => {
+            // --- BONUS: NALICZANIE PUNKTÓW ZA STRZELCA FANTASY ---
+            const chosenStrzelec = row["fantasy_strzelec"];
+            if (chosenStrzelec && chosenStrzelec !== "-" && chosenStrzelec !== "") {
+                let pointsPerGol = 0;
+                Object.keys(fantasyPlayers).forEach(c => {
+                    fantasyPlayers[c].forEach(p => {
+                        if (chosenStrzelec.includes(p.name)) {
+                            pointsPerGol = p.pts;
+                        }
+                    });
+                });
+
+                const oficjalneGole = parseInt(officialRow["fantasy_strzelec_gole"]) || 0; 
+                totalPoints += (oficjalneGole * pointsPerGol);
+            }
+
+            playersLeaderboard.push({ 
+                name: row.gracz, 
+                points: totalPoints, 
+                exacts: countExact, 
+                trends: countTrend,
+                strzelecDisplay: chosenStrzelec || '-'
+            });
+
+            // Renderowanie wiersza w tabeli szczegółowej
+            let rowHtml = `<tr><td style="text-align:left; font-weight:bold; color:white;">${row.gracz}</td>`;
+            if (currentTableView === "PUCHAROWA") {
+                rowHtml += `<td style="color:#aaa; font-style:italic;">${chosenStrzelec || '-'}</td>`;
+            }
+
+            filteredMatches.forEach(m => {
                 const matchKey = m.id.toLowerCase();
                 const playerPrediction = row[matchKey] || '-';
-                const evaluation = evaluatePrediction(playerPrediction, m.score);
+                const officialResult = m.score || '';
+                const evaluation = evaluatePrediction(playerPrediction, officialResult, m.group);
                 rowHtml += `<td class="${evaluation.cssClass}">${playerPrediction}</td>`;
             });
+            rowHtml += `</tr>`;
             
+            const tr = document.createElement('tr');
             tr.innerHTML = rowHtml;
             tbody.appendChild(tr);
-            playersLeaderboard.push({ name: row.gracz, points: totalPoints, exacts: countExact, trends: countTrend });
         });
 
-        // Sortowanie rankingu głównego
+        // Sortowanie i renderowanie rankingu generalnego
         playersLeaderboard.sort((a, b) => b.points !== a.points ? b.points - a.points : b.exacts - a.exacts);
         leaderboardBody.innerHTML = "";
+        
         playersLeaderboard.forEach((player, index) => {
             const trRank = document.createElement('tr');
             trRank.className = "leaderboard-row";
+            
+            let formatStrzelca = player.strzelecDisplay !== "-" ? `<br><span style="font-size:10px; font-weight:normal; color:#8a99ad;">Fantasy: ${player.strzelecDisplay}</span>` : "";
+            
             trRank.innerHTML = `
                 <td><span class="rank-badge">${index + 1}</span></td>
                 <td style="text-align: left; padding-left: 15px; font-weight: bold; color: #fff;">
-                    ${player.name} <span class="stats-span">(🟢 x${player.exacts}, 🟡 x${player.trends})</span>
+                    ${player.name} <span class="stats-span">(🟢 x${player.exacts}, 🟡 x${player.trends})</span> ${formatStrzelca}
                 </td>
                 <td style="font-weight: bold; color: var(--primary); font-size: 16px;">${player.points} pkt</td>
             `;
             leaderboardBody.appendChild(trRank);
         });
-        refreshTwemoji(); 
+
+        if(typeof twemoji !== 'undefined') {
+            twemoji.parse(thead, { folder: 'svg', ext: '.svg' });
+            twemoji.parse(tbody, { folder: 'svg', ext: '.svg' });
+            twemoji.parse(leaderboardBody, { folder: 'svg', ext: '.svg' });
+        }
     }
 </script>
+
 </body>
 </html>
