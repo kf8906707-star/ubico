@@ -387,7 +387,18 @@
         }
         loadAllScores();
     };
+// ... wewnątrz funkcji loadAllScores ...
+const data = await response.json();
 
+// DODAJ TĘ DIAGNOSTYKĘ:
+console.log("Co dokładnie przyszło z Google Sheets?:", data);
+
+if (!Array.isArray(data)) {
+    throw new Error("Oczekiwano tablicy danych, a otrzymano obiekt. Prawdopodobna treść błędu z serwera: " + JSON.stringify(data));
+}
+
+existingDatabaseRows = data;
+// ... dalsza część funkcji ...
     function showLoading(show) {
         document.getElementById('loading-screen').className = show ? "card" : "card hidden";
     }
