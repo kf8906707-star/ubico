@@ -43,7 +43,7 @@
         img.emoji { height: 1.2em; width: 1.2em; margin: 0 .15em; vertical-align: -0.2em; }
         
         .table-container { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; min-width: 1600px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; min-width: 1000px; }
         th, td { padding: 12px 8px; text-align: center; border-bottom: 1px solid #2a3558; font-size: 12px; }
         th { color: var(--primary); background: #1a2238; font-weight: 600; vertical-align: middle; }
         .th-match-header { font-size: 11px; font-weight: bold; color: white; white-space: nowrap; min-width: 90px; text-align: center; letter-spacing: 0.5px; display: flex; align-items: center; justify-content: center; gap: 4px; }
@@ -63,7 +63,7 @@
 
         .progress-bar { 
             display: grid;
-            grid-template-columns: repeat(4, 1fr); 
+            grid-template-columns: repeat(5, 1fr); 
             gap: 6px; 
             background: #1a2238; 
             padding: 8px; 
@@ -85,9 +85,27 @@
         .progress-step:hover { background: #2a3558; color: white; }
         .progress-step.active { color: var(--bg); background: var(--primary); }
 
+        .table-filter-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .filter-btn {
+            flex: 1;
+            background: #2a3558;
+            color: #a0aec0;
+            border: 2px solid transparent;
+            padding: 10px;
+            font-size: 13px;
+            margin: 0;
+        }
+        .filter-btn.active {
+            background: #1e2640;
+            color: var(--primary);
+            border-color: var(--primary);
+        }
+
         @media (min-width: 500px) {
-            .progress-bar { grid-template-columns: repeat(6, 1fr); gap: 4px; }
-            .progress-step { padding: 6px 0; font-size: 11px; }
             .logo-container img { max-width: 240px; }
         }
     </style>
@@ -131,6 +149,12 @@
 
         <div class="card">
             <h2>📊 Szczegółowe Typy Graczy</h2>
+            
+            <div class="table-filter-bar">
+                <button class="filter-btn active" id="filter-btn-pucharowa" onclick="setTableFilter('pucharowa')">Faza Pucharowa (Mecze 73-104)</button>
+                <button class="filter-btn" id="filter-btn-grupowa" onclick="setTableFilter('grupowa')">Faza Grupowa (Mecze 1-72)</button>
+            </div>
+
             <button onclick="loadAllScores()" style="background:#2a3558; color:white; font-size:12px; padding:6px; margin-bottom:10px; width:auto;">🔄 Odśwież tabelę i punkty</button>
             <div class="table-container">
                 <table id="global-table">
@@ -167,10 +191,12 @@
     const KEY_NAME = "sheet1"; 
     // =========================================================
 
-    const groupsOrder = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "1/16", "1/8", "1/4", "1/2", "FINALE"];
+    // Wybór etapów do typowania ograniczony tylko do fazy pucharowej
+    const groupsOrder = ["1/16", "1/8", "1/4", "1/2", "FINALE"];
     let currentGroupIndex = 0; 
     let localDraftScores = {}; 
     let existingDatabaseRows = [];
+    let currentTableFilter = "pucharowa"; // domyślny filtr tabeli na dole
 
     const teamFlags = {
         "Meksyk": "🇲🇽", "RPA": "🇿🇦", "Korea Płd.": "🇰🇷", "Czechy": "🇨🇿", "Korea Południowa": "🇰🇷",
@@ -188,11 +214,11 @@
         "TBD": "❓"
     };
 
-    // Wspólny czas blokady dla całej rundy 1/16 finału: 28 czerwca 2026 r., 21:00 czasu polskiego
+    // Globalna blokada czasowa dla meczów 1/16 finału
     const R32_LOCK_TIME = "2026-06-28T21:00:00";
 
     const allMatches = [
-        // --- FAZA GRUPOWA ---
+        // --- ARCHIWALNA FAZA GRUPOWA (potrzebna do podliczania punktów oraz filtrowania) ---
         { id: "Mecz1", group: "A", t1: "Meksyk", t2: "RPA", lock: "2026-06-11T21:00:00", score: "2:0" },
         { id: "Mecz2", group: "A", t1: "Korea Płd.", t2: "Czechy", lock: "2026-06-12T04:00:00", score: "2:1" },
         { id: "Mecz7", group: "B", t1: "Kanada", t2: "Bośnia i Herc.", lock: "2026-06-12T21:00:00", score: "1:1" },
@@ -266,7 +292,7 @@
         { id: "Mecz59", group: "J", t1: "Algieria", t2: "Austria", lock: "2026-06-28T04:00:00", score: "" },
         { id: "Mecz60", group: "J", t1: "Jordania", t2: "Argentyna", lock: "2026-06-28T04:00:00", score: "" },
 
-        // --- CHRONOLOGICZNA FAZA 1/16 FINAŁU (Mecze 73-88) ---
+        // --- AKTYWNA FAZA PUCHAROWA (Mecze 73-104) ---
         { id: "Mecz73", group: "1/16", t1: "RPA", t2: "Kanada", lock: R32_LOCK_TIME, score: "" },
         { id: "Mecz74", group: "1/16", t1: "Brazylia", t2: "Japonia", lock: R32_LOCK_TIME, score: "" },
         { id: "Mecz75", group: "1/16", t1: "Niemcy", t2: "Paragwaj", lock: R32_LOCK_TIME, score: "" },
@@ -285,7 +311,7 @@
         { id: "Mecz88", group: "1/16", t1: "Kolumbia", t2: "Ghana", lock: R32_LOCK_TIME, score: "" }
     ];
 
-    // Automatyczne dodanie pozostałych struktur (TBD) na dalsze etapy przedstartowe
+    // Szablony pod kolejne etapy
     for(let i = 89; i <= 96; i++) {
         allMatches.push({ id: `Mecz${i}`, group: "1/8", t1: "TBD", t2: "TBD", lock: "2026-07-05T18:00:00", score: "" });
     }
@@ -295,8 +321,8 @@
     for(let i = 101; i <= 102; i++) {
         allMatches.push({ id: `Mecz${i}`, group: "1/2", t1: "TBD", t2: "TBD", lock: "2026-07-14T21:00:00", score: "" });
     }
-    allMatches.push({ id: "Mecz103", group: "FINALE", t1: "TBD", t2: "TBD", lock: "2026-07-18T21:00:00", score: "" }); // Mecz o 3 miejsce
-    allMatches.push({ id: "Mecz104", group: "FINALE", t1: "TBD", t2: "TBD", lock: "2026-07-19T21:00:00", score: "" }); // Finał główny
+    allMatches.push({ id: "Mecz103", group: "FINALE", t1: "TBD", t2: "TBD", lock: "2026-07-18T21:00:00", score: "" }); 
+    allMatches.push({ id: "Mecz104", group: "FINALE", t1: "TBD", t2: "TBD", lock: "2026-07-19T21:00:00", score: "" });
 
     function getFlagAnd3LetterCode(teamName) {
         if (!teamName) return "???";
@@ -319,7 +345,7 @@
         try {
             await loadAllScores();
         } catch (e) {
-            console.error("Ignorowany błąd pobierania bazy przy starcie:", e);
+            console.error("Błąd ładowania bazy przy starcie:", e);
         }
 
         document.getElementById('loading-screen').classList.add('hidden');
@@ -420,12 +446,7 @@
 
     function renderActiveGroup() {
         const currentLetter = groupsOrder[currentGroupIndex];
-        
-        if (["1/16", "1/8", "1/4", "1/2", "FINALE"].includes(currentLetter)) {
-            document.getElementById('group-title').innerText = `🏆 FAZA PUCHAROWA — RUNDA ${currentLetter}`;
-        } else {
-            document.getElementById('group-title').innerText = `🏆 FAZA GRUPOWA — GRUPA ${currentLetter}`;
-        }
+        document.getElementById('group-title').innerText = `🏆 FAZA PUCHAROWA — RUNDA ${currentLetter}`;
         
         const container = document.getElementById('matches-list');
         container.innerHTML = "";
@@ -433,14 +454,19 @@
         const groupMatches = allMatches.filter(m => m.group === currentLetter);
         const isGroupPermanentlyLocked = isGroupSubmittedByPlayer(currentLetter);
 
+        // Wyznaczenie blokady wyższych rund: odblokowujemy tylko jeśli gracz skończył 1/16 LUB dana runda ma już swoje własne potwierdzenie
+        const isPreviousStepDone = isGroupSubmittedByPlayer("1/16");
+        const isRundeLockedByWorkflow = (currentLetter !== "1/16" && !isPreviousStepDone);
+
         if(groupMatches.length === 0) {
-            container.innerHTML = "<p style='text-align:center; color:#8a99ad;'>Brak meczów skonfigurowanych w tej rundzie.</p>";
+            container.innerHTML = "<p style='text-align:center; color:#8a99ad;'>Brak meczów.</p>";
             return;
         }
 
         groupMatches.forEach((match, index) => {
             const lockTime = new Date(match.lock);
-            const isLocked = (now >= lockTime) || isGroupPermanentlyLocked;
+            // Mecz jest zablokowany, jeśli minął jego czas, runda została zatwierdzona LUB workflow blokuje rundę przed ukończeniem 1/16
+            const isLocked = (now >= lockTime) || isGroupPermanentlyLocked || isRundeLockedByWorkflow;
 
             const div = document.createElement('div');
             div.className = "match-row";
@@ -461,8 +487,10 @@
                 officialResultText = ` <b style="color:var(--primary)">[Wynik: ${match.score}]</b>`;
             }
 
-            let statusMessage = '⏰ Start PL: ' + match.lock.replace('T', ' ');
-            if (now >= lockTime) {
+            let statusMessage = '⏰ Zamknięcie: ' + match.lock.replace('T', ' ').substring(0, 16);
+            if (isRundeLockedByWorkflow) {
+                statusMessage = '<span class="locked-text">🔒 Zablokowane (Najpierw ukończ i zapisz 1/16)</span>';
+            } else if (now >= lockTime) {
                 statusMessage = '<span class="locked-text">🔒 ZABLOKOWANY (Czas minął)</span>';
             } else if (isGroupPermanentlyLocked) {
                 statusMessage = '<span class="submitted-text">🔒 ZABLOKOWANY (Wysłano)</span>';
@@ -511,7 +539,13 @@
         const submitContainer = document.getElementById('submit-container');
 
         if (isGroupSubmittedByPlayer(currentLetter)) {
-            submitContainer.innerHTML = `<div class="success-box">⭐ Ta runda została już przez Ciebie zatwierdzona i zablokowana!</div>`;
+            submitContainer.innerHTML = `<div class="success-box">⭐ Ta runda została już przez Ciebie zatwierdzona i zapisana!</div>`;
+            return;
+        }
+
+        const isPreviousStepDone = isGroupSubmittedByPlayer("1/16");
+        if (currentLetter !== "1/16" && !isPreviousStepDone) {
+            submitContainer.innerHTML = `<div class="success-box" style="color:var(--danger); border-color:var(--danger);">🔒 Musisz w pełni zatwierdzić rundę 1/16, aby edytować ten etap.</div>`;
             return;
         }
 
@@ -539,7 +573,7 @@
                 btn.innerText = currentGroupIndex === groupsOrder.length - 1 ? "💾 Zapisz i Zakończ Typowanie!" : `💾 Zapisz i przejdź do Rund: ${groupsOrder[currentGroupIndex + 1]}`;
             } else {
                 btn.setAttribute('disabled', 'true');
-                btn.innerText = "Wpisz wszystkie otwarte wyniki tej rundy, aby przejść dalej";
+                btn.innerText = "Wpisz wszystkie otwarte wyniki tej rundy, aby zapisać";
             }
         }
     }
@@ -559,8 +593,6 @@
             const awayVal = localDraftScores[`away-${m.id}`];
             if (homeVal !== undefined && awayVal !== undefined && homeVal !== "" && awayVal !== "") {
                 updateData[matchKey] = `${homeVal}:${awayVal}`;
-            } else {
-                // Jeśli nie wpisano nic, zachowajmy pustkę w bazie danych
             }
         });
         const btn = document.getElementById('submit-btn');
@@ -577,9 +609,7 @@
             });
             const responseData = await res.json();
 
-            if (responseData.status === "error") {
-                throw new Error(responseData.message || "Błąd wewnętrzny bazy Google Sheets");
-            }
+            if (responseData.status === "error") throw new Error(responseData.message || "Błąd bazy danych");
 
             localStorage.setItem(`submitted_group_${currentLetter.toLowerCase()}_${nick.toLowerCase()}`, "true");
             const indexToUpdate = existingDatabaseRows.findIndex(r => r.gracz && r.gracz.toLowerCase() === nick.toLowerCase());
@@ -589,17 +619,13 @@
                 existingDatabaseRows.push(updateData);
             }
 
+            alert(`Runda ${groupsOrder[currentGroupIndex]} została pomyślnie zapisana! 🚀`);
             if (currentGroupIndex < groupsOrder.length - 1) {
-                alert(`Runda ${groupsOrder[currentGroupIndex]} została zapisana i ZABLOKOWANA przed zmianami! 🚀`);
                 currentGroupIndex++;
-                renderProgressBar(); renderActiveGroup(); 
-                try { await loadAllScores(); } catch(e){}
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            } else {
-                alert("Wszystkie typowania zostały oficjalnie zapisane i zablokowane! Powodzenia! 🎉");
-                renderProgressBar(); renderActiveGroup();
-                try { await loadAllScores(); } catch(e){}
             }
+            renderProgressBar(); renderActiveGroup(); 
+            try { await loadAllScores(); } catch(e){}
+            window.scrollTo({ top: 0, behavior: 'smooth' });
 
         } catch (error) {
             console.error(error);
@@ -607,6 +633,20 @@
             if (btn) btn.removeAttribute('disabled');
             validateGroupCompletion();
         }
+    }
+
+    function setTableFilter(filterValue) {
+        currentTableFilter = filterValue;
+        document.getElementById('filter-btn-pucharowa').classList.remove('active');
+        document.getElementById('filter-btn-grupowa').classList.remove('active');
+        
+        if (filterValue === 'pucharowa') {
+            document.getElementById('filter-btn-pucharowa').classList.add('active');
+        } else {
+            document.getElementById('filter-btn-grupowa').classList.add('active');
+        }
+        
+        buildGlobalTableUI();
     }
 
     function evaluatePrediction(playerPrediction, officialResult) {
@@ -627,26 +667,38 @@
     }
 
     async function loadAllScores() {
+        const response = await fetch(API_URL);
+        const data = await response.json();
+        existingDatabaseRows = data[KEY_NAME] || [];
+        buildGlobalTableUI();
+    }
+
+    function buildGlobalTableUI() {
         const thead = document.getElementById('table-head');
         const tbody = document.getElementById('table-body');
         const leaderboardBody = document.getElementById('leaderboard-body');
         const loggedInUser = localStorage.getItem('typerNick') || "";
         
-        const response = await fetch(API_URL);
-        const data = await response.json();
-        existingDatabaseRows = data[KEY_NAME] || [];
-        
+        // Filtrowanie meczów do nagłówka tabeli na podstawie wybranego przełącznika
+        let filteredMatches = [];
+        if (currentTableFilter === "grupowa") {
+            filteredMatches = allMatches.filter(m => !["1/16", "1/8", "1/4", "1/2", "FINALE"].includes(m.group));
+        } else {
+            filteredMatches = allMatches.filter(m => ["1/16", "1/8", "1/4", "1/2", "FINALE"].includes(m.group));
+        }
+
         thead.innerHTML = "";
         const trHead = document.createElement('tr');
         trHead.innerHTML = "<th style='position:sticky; left:0; background:#1a2238; z-index:3;'>Gracz</th>";
-        allMatches.forEach(m => {
+        
+        filteredMatches.forEach(m => {
             const homeFormat = getFlagAnd3LetterCode(m.t1);
             const awayFormat = getFlagAnd3LetterCode(m.t2);
             const resultSub = m.score ? `<br><span style="color:#01c38d; font-size:10px;">(${m.score})</span>` : '';
             trHead.innerHTML += `
                 <th>
                     <div class="th-match-header" style="flex-direction:column;">
-                        <div style="font-size:9px; color:#8a99ad; margin-bottom:2px;">RUNDA: ${m.group}</div>
+                        <div style="font-size:9px; color:#8a99ad; margin-bottom:2px;">${m.group} / ${m.id.replace('Mecz', 'M')}</div>
                         <div>${homeFormat}-${awayFormat}</div>
                         ${resultSub}
                     </div>
@@ -658,13 +710,11 @@
         tbody.innerHTML = "";
 
         if (!Array.isArray(existingDatabaseRows) || existingDatabaseRows.length === 0) {
-            tbody.innerHTML = "<tr><td colspan='110'>Brak wpisów w bazie danych.</td></tr>";
-            leaderboardBody.innerHTML = "<tr><td colspan='3'>Brak danych do stworzenia rankingu.</td></tr>";
-            refreshTwemoji();
+            tbody.innerHTML = "<tr><td colspan='100'>Brak wpisów w bazie danych.</td></tr>";
+            leaderboardBody.innerHTML = "<tr><td colspan='3'>Brak danych do rankingu.</td></tr>";
             return;
         }
 
-        // Pobranie wiersza aktualnie zalogowanego użytkownika
         const loggedInUserRow = existingDatabaseRows.find(r => r.gracz && r.gracz.toLowerCase() === loggedInUser.toLowerCase());
 
         existingDatabaseRows.forEach(row => {
@@ -673,28 +723,32 @@
             const tr = document.createElement('tr');
             let rowHtml = `<td style="font-weight:bold; color:#01c38d; position:sticky; left:0; background:#131927; z-index:1;">${row.gracz}</td>`;
             
+            // Obliczamy punkty dla WSZYSTKICH meczów (niezależnie od filtra tabeli)
             allMatches.forEach(m => {
                 const matchKey = m.id.toLowerCase();
                 const playerPrediction = row[matchKey] || '-';
-                
-                // Logika oceny punktowej
                 const evaluation = evaluatePrediction(playerPrediction, m.score);
                 totalPoints += evaluation.points;
                 if (evaluation.type === "exact") countExact++;
                 if (evaluation.type === "trend") countTrend++;
+            });
 
-                // --- LOGIKA UKRYWANIA TYPÓW INNYCH OSÓB ---
+            // Generujemy komórki tylko dla meczów pasujących do AKTUALNEGO filtra tabeli
+            filteredMatches.forEach(m => {
+                const matchKey = m.id.toLowerCase();
+                const playerPrediction = row[matchKey] || '-';
+                const evaluation = evaluatePrediction(playerPrediction, m.score);
+
                 let cellTextToShow = playerPrediction;
                 let finalCssClass = evaluation.cssClass;
 
                 if (row.gracz.toLowerCase() !== loggedInUser.toLowerCase()) {
-                    // Sprawdzamy, czy zalogowany gracz uzupełnił już swój typ dla tego meczu
                     const loggedInUserPrediction = loggedInUserRow ? loggedInUserRow[matchKey] : "";
                     const hasLoggedInUserPredicted = loggedInUserPrediction && loggedInUserPrediction.includes(":");
 
                     if (!hasLoggedInUserPredicted) {
                         cellTextToShow = "🔒 Ukryte";
-                        finalCssClass = ""; // Usuwamy klasy kolorów (zielone/czerwone/żółte) dopóki jest ukryte
+                        finalCssClass = "";
                     }
                 }
 
@@ -706,6 +760,7 @@
             playersLeaderboard.push({ name: row.gracz, points: totalPoints, exacts: countExact, trends: countTrend });
         });
 
+        // Generowanie Rankingu Ogólnego (zawsze zlicza sumę punktów ze wszystkich faz)
         playersLeaderboard.sort((a, b) => b.points !== a.points ? b.points - a.points : b.exacts - a.exacts);
         leaderboardBody.innerHTML = "";
         playersLeaderboard.forEach((player, index) => {
