@@ -186,11 +186,8 @@
 </div>
 
 <script>
-    // =========================================================
-    // ⚠️ TUTAJ WKLEJ SWÓJ LINK Z GOOGLE APPS SCRIPT:
     const API_URL = "https://script.google.com/macros/s/AKfycbwITEYeeJMhwBvCygn9f75aGAmkIfRL8XJV7erXPZYOj84GDMBXgWHLvut7rNXIBag4hA/exec";
     const KEY_NAME = "sheet1"; 
-    // =========================================================
 
     const groupsOrder = ["1/16", "1/8", "1/4", "1/2", "FINALE"];
     let currentGroupIndex = 0; 
@@ -220,6 +217,8 @@
     };
 
     const R32_LOCK_TIME = "2026-06-28T21:00:00";
+    // 📅 Data odblokowania fazy 1/8 (Sobota, 4 lipca, 03:30 czasu polskiego - po zakończeniu ostatniego meczu 1/16)
+    const R16_UNLOCK_TIME = "2026-07-04T03:30:00";
 
     const allMatches = [
         // --- ARCHIWALNA FAZA GRUPOWA ---
@@ -428,19 +427,22 @@
         const bar = document.getElementById('steps-bar');
         bar.innerHTML = "";
         
-        const isR32Done = isGroupSubmittedByPlayer("1/16");
+        const now = new Date();
+        const unlockTime = new Date(R16_UNLOCK_TIME);
+        // Sprawdzamy sztywną blokadę czasową dla fazy 1/8 i kolejnych
+        const isTimeLockedForNextPhases = (now < unlockTime);
 
         groupsOrder.forEach((g, idx) => {
             const span = document.createElement('span');
             const isDone = isGroupSubmittedByPlayer(g);
             
-            // Logika blokowania kliknięć w wyższe fazy
-            const isLockedWorkflow = (g !== "1/16" && !isR32Done);
+            // Każda faza powyżej 1/16 jest zablokowana do soboty do 3:30 rano
+            const isLockedWorkflow = (g !== "1/16" && isTimeLockedForNextPhases);
 
             if(isLockedWorkflow) {
                 span.className = `progress-step step-locked`;
                 span.innerText = g;
-                span.onclick = null; // wyłączenie interakcji
+                span.onclick = null; 
             } else {
                 span.className = `progress-step ${idx === currentGroupIndex ? 'active' : ''}`;
                 span.innerText = isDone ? `${g} ✓` : g; 
@@ -452,8 +454,10 @@
 
     function changeGroup(targetIndex) {
         const targetGroup = groupsOrder[targetIndex];
-        const isR32Done = isGroupSubmittedByPlayer("1/16");
-        if (targetGroup !== "1/16" && !isR32Done) return; // zabezpieczenie funkcyjne
+        const now = new Date();
+        const unlockTime = new Date(R16_UNLOCK_TIME);
+        
+        if (targetGroup !== "1/16" && now < unlockTime) return; 
 
         saveCurrentInputsToDraft();
         currentGroupIndex = targetIndex;
@@ -490,8 +494,8 @@
         const groupMatches = allMatches.filter(m => m.group === currentLetter);
         const isGroupPermanentlyLocked = isGroupSubmittedByPlayer(currentLetter);
 
-        const isPreviousStepDone = isGroupSubmittedByPlayer("1/16");
-        const isRundeLockedByWorkflow = (currentLetter !== "1/16" && !isPreviousStepDone);
+        const unlockTime = new Date(R16_UNLOCK_TIME);
+        const isRundeLockedByWorkflow = (currentLetter !== "1/16" && now < unlockTime);
 
         if(groupMatches.length === 0) {
             container.innerHTML = "<p style='text-align:center; color:#8a99ad;'>Brak meczów.</p>";
@@ -524,7 +528,7 @@
             let venueText = match.venue ? ` | 📍 ${match.venue}` : "";
             let statusMessage = '⏰ Mecz: ' + match.lock.replace('T', ' ').substring(0, 16) + venueText;
             if (isRundeLockedByWorkflow) {
-                statusMessage = '<span class="locked-text">🔒 Zablokowane (Najpierw ukończ i zapisz 1/16)</span>';
+                statusMessage = '<span class="locked-text">🔒 Zablokowane do 04.07, godz. 03:30 (czekamy na koniec 1/16)</span>';
             } else if (now >= lockTime) {
                 statusMessage = '<span class="locked-text">🔒 ZABLOKOWANY (Czas minął)</span>';
             } else if (isGroupPermanentlyLocked) {
@@ -572,15 +576,16 @@
     function validateGroupCompletion() {
         const currentLetter = groupsOrder[currentGroupIndex];
         const submitContainer = document.getElementById('submit-container');
+        const now = new Date();
+        const unlockTime = new Date(R16_UNLOCK_TIME);
 
         if (isGroupSubmittedByPlayer(currentLetter)) {
             submitContainer.innerHTML = `<div class="success-box">⭐ Ta runda została już przez Ciebie zatwierdzona i zapisana!</div>`;
             return;
         }
 
-        const isPreviousStepDone = isGroupSubmittedByPlayer("1/16");
-        if (currentLetter !== "1/16" && !isPreviousStepDone) {
-            submitContainer.innerHTML = `<div class="success-box" style="color:var(--danger); border-color:var(--danger);">🔒 Musisz w pełni zatwierdzić rundę 1/16, aby edytować ten etap.</div>`;
+        if (currentLetter !== "1/16" && now < unlockTime) {
+            submitContainer.innerHTML = `<div class="success-box" style="color:var(--danger); border-color:var(--danger);">🔒 Ta runda otworzy się automatycznie w sobotę o 03:30 po zakończeniu meczów 1/16.</div>`;
             return;
         }
 
@@ -655,9 +660,14 @@
             }
 
             alert(`Runda ${groupsOrder[currentGroupIndex]} została pomyślnie zapisana! 🚀`);
-            if (currentGroupIndex < groupsOrder.length - 1) {
+            
+            const now = new Date();
+            const unlockTime = new Date(R16_UNLOCK_TIME);
+            // Przejdź dalej tylko jeśli kolejna faza jest już czasowo dostępna
+            if (currentGroupIndex < groupsOrder.length - 1 && (groupsOrder[currentGroupIndex + 1] === "1/16" || now >= unlockTime)) {
                 currentGroupIndex++;
             }
+            
             renderProgressBar(); renderActiveGroup(); 
             try { await loadAllScores(); } catch(e){}
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -730,7 +740,6 @@
             const awayFormat = getFlagAnd3LetterCode(m.t2);
             const resultSub = m.score ? `<br><span style="color:#01c38d; font-size:10px;">(${m.score})</span>` : '';
             
-            // Czysty, jednowierszowy nagłówek bez dopisków pucharowych i numerów meczów nad spodem
             trHead.innerHTML += `
                 <th>
                     <div class="th-match-header" style="flex-direction:column; padding: 4px 0;">
