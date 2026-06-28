@@ -46,7 +46,7 @@
         table { width: 100%; border-collapse: collapse; margin-top: 10px; min-width: 1000px; }
         th, td { padding: 12px 8px; text-align: center; border-bottom: 1px solid #2a3558; font-size: 12px; }
         th { color: var(--primary); background: #1a2238; font-weight: 600; vertical-align: middle; }
-        .th-match-header { font-size: 11px; font-weight: bold; color: white; white-space: nowrap; min-width: 90px; text-align: center; letter-spacing: 0.5px; display: flex; align-items: center; justify-content: center; gap: 4px; }
+        .th-match-header { font-size: 12px; font-weight: bold; color: white; white-space: nowrap; min-width: 120px; text-align: center; letter-spacing: 0.5px; display: flex; align-items: center; justify-content: center; gap: 4px; }
         
         .cell-exact { background-color: #028a5a !important; color: white !important; font-weight: bold; } 
         .cell-trend { background-color: #b8860b !important; color: white !important; font-weight: bold; } 
@@ -82,8 +82,9 @@
             font-size: 13px; 
             font-weight: bold;
         }
-        .progress-step:hover { background: #2a3558; color: white; }
+        .progress-step:hover:not(.step-locked) { background: #2a3558; color: white; }
         .progress-step.active { color: var(--bg); background: var(--primary); }
+        .progress-step.step-locked { color: #4a5568; background: #161c2e; cursor: not-allowed; opacity: 0.6; }
 
         .table-filter-bar {
             display: flex;
@@ -151,8 +152,8 @@
             <h2>📊 Szczegółowe Typy Graczy</h2>
             
             <div class="table-filter-bar">
-                <button class="filter-btn active" id="filter-btn-pucharowa" onclick="setTableFilter('pucharowa')">Faza Pucharowa (Mecze 73-104)</button>
-                <button class="filter-btn" id="filter-btn-grupowa" onclick="setTableFilter('grupowa')">Faza Grupowa (Mecze 1-72)</button>
+                <button class="filter-btn active" id="filter-btn-pucharowa" onclick="setTableFilter('pucharowa')">Faza Pucharowa</button>
+                <button class="filter-btn" id="filter-btn-grupowa" onclick="setTableFilter('grupowa')">Faza Grupowa</button>
             </div>
 
             <button onclick="loadAllScores()" style="background:#2a3558; color:white; font-size:12px; padding:6px; margin-bottom:10px; width:auto;">🔄 Odśwież tabelę i punkty</button>
@@ -191,34 +192,37 @@
     const KEY_NAME = "sheet1"; 
     // =========================================================
 
-    // Wybór etapów do typowania ograniczony tylko do fazy pucharowej
     const groupsOrder = ["1/16", "1/8", "1/4", "1/2", "FINALE"];
     let currentGroupIndex = 0; 
     let localDraftScores = {}; 
     let existingDatabaseRows = [];
-    let currentTableFilter = "pucharowa"; // domyślny filtr tabeli na dole
+    let currentTableFilter = "pucharowa"; 
 
     const teamFlags = {
         "Meksyk": "🇲🇽", "RPA": "🇿🇦", "Korea Płd.": "🇰🇷", "Czechy": "🇨🇿", "Korea Południowa": "🇰🇷",
-        "Kanada": "🇨🇦", "Bośnia i Herc.": "🇧🇦", "Bośnia i Hercegowina": "🇧🇦", "Bośnia i Herceg.": "🇧🇦", "Katar": "🇶🇦", "Szwajcaria": "🇨🇭",
+        "Kanada": "🇨🇦", "Bośnia i Herc.": "🇧🇦", "Bośnia i Hercegowina": "🇧🇦", "Bośnia i Herceg.": "🇧🇦", "Bośnia": "🇧🇦", "Katar": "🇶🇦", "Szwajcaria": "🇨🇭",
         "Brazylia": "🇧🇷", "Maroko": "🇲🇦", "Haiti": "🇭🇹", "Szkocja": "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
         "USA": "🇺🇸", "Paragwaj": "🇵🇾", "Australia": "🇦🇺", "Turcja": "🇹🇷",
         "Niemcy": "🇩🇪", "Curacao": "🇨🇼", "Curaçao": "🇨🇼", "WKS": "🇨🇮", "Ekwador": "🇪🇨",
         "Holandia": "🇳🇱", "Japonia": "🇯🇵", "Szwecja": "🇸🇪", "Tunezja": "🇹🇳",
         "Belgia": "🇧🇪", "Egipt": "🇪🇬", "Iran": "🇮🇷", "Nowa Zelandia": "🇳🇿", "Nowa Zel.": "🇳🇿",
-        "Hiszpania": "🇪🇸", "Rep. Ziel. Przyl.": "🇨🇻", "Rep. Zielonego Przyl.": "🇨🇻", "Rep. Z. Prz.": "🇨🇻", "Republika Zielonego Przylądka": "🇨🇻", "Arabia Saud.": "🇸🇦", "Arabia Saudyjska": "🇸🇦", "Arabia S.": "🇸🇦", "Urugwaj": "🇺🇾",
+        "Hiszpania": "🇪🇸", "Rep. Ziel. Przyl.": "🇨🇻", "Rep. Zielonego Przyl.": "🇨🇻", "Rep. Z. Prz.": "🇨🇻", "Republika Zielonego Przylądka": "🇨🇻", "Zielony Przylądek": "🇨🇻", "Arabia Saud.": "🇸🇦", "Arabia Saudyjska": "🇸🇦", "Arabia S.": "🇸🇦", "Urugwaj": "🇺🇾",
         "Francja": "🇫🇷", "Senegal": "🇸🇳", "Irak": "🇮🇶", "Norwegia": "🇳🇴",
         "Argentyna": "🇦🇷", "Algieria": "🇩🇿", "Austria": "🇦🇹", "Jordania": "🇯🇴",
         "Portugalia": "🇵🇹", "DR Kongo": "🇨🇩", "DR Konga": "🇨🇩", "Uzbekistan": "🇺🇿", "Kolumbia": "🇨🇴",
         "Anglia": "🏴󠁧󠁢󠁥󠁮󠁧󠁿", "Chorwacja": "🇭🇷", "Ghana": "🇬🇭", "Panama": "🇵🇦",
-        "TBD": "❓"
+        "TBD": "❓", "Zwycięzca RPA/Kanada": "❓", "Zwycięzca Holandia/Maroko": "❓", "Zwycięzca Niemcy/Paragwaj": "❓", "Zwycięzca Francja/Szwecja": "❓",
+        "Zwycięzca Brazylia/Japonia": "❓", "Zwycięzca WKS/Norwegia": "❓", "Zwycięzca Meksyk/Ekwador": "❓", "Zwycięzca Anglia/DR Konga": "❓",
+        "Zwycięzca Portugalia/Chorwacja": "❓", "Zwycięzca Hiszpania/Austria": "❓", "Zwycięzca USA/Bośnia": "❓", "Zwycięzca Belgia/Senegal": "❓",
+        "Zwycięzca Argentyna/Zielony Przylądek": "❓", "Zwycięzca Australia/Egipt": "❓", "Zwycięzca Szwajcaria/Algieria": "❓", "Zwycięzca Kolumbia/Ghana": "❓",
+        "Mecz 1/8 finału (zachód)": "❓", "Ćwierćfinał 1": "❓", "Ćwierćfinał 2": "❓", "Ćwierćfinał 3": "❓", "Ćwierćfinał 4": "❓",
+        "Półfinał 1": "❓", "Półfinał 2": "❓", "Przegrany Półfinału 1": "❓", "Przegrany Półfinału 2": "❓", "Zwycięzca Półfinału 1": "❓", "Zwycięzca Półfinału 2": "❓"
     };
 
-    // Globalna blokada czasowa dla meczów 1/16 finału
     const R32_LOCK_TIME = "2026-06-28T21:00:00";
 
     const allMatches = [
-        // --- ARCHIWALNA FAZA GRUPOWA (potrzebna do podliczania punktów oraz filtrowania) ---
+        // --- ARCHIWALNA FAZA GRUPOWA ---
         { id: "Mecz1", group: "A", t1: "Meksyk", t2: "RPA", lock: "2026-06-11T21:00:00", score: "2:0" },
         { id: "Mecz2", group: "A", t1: "Korea Płd.", t2: "Czechy", lock: "2026-06-12T04:00:00", score: "2:1" },
         { id: "Mecz7", group: "B", t1: "Kanada", t2: "Bośnia i Herc.", lock: "2026-06-12T21:00:00", score: "1:1" },
@@ -292,7 +296,7 @@
         { id: "Mecz59", group: "J", t1: "Algieria", t2: "Austria", lock: "2026-06-28T04:00:00", score: "" },
         { id: "Mecz60", group: "J", t1: "Jordania", t2: "Argentyna", lock: "2026-06-28T04:00:00", score: "" },
 
-        // --- AKTYWNA FAZA PUCHAROWA (Mecze 73-104) ---
+        // --- AKTYWNA FAZA 1/16 FINAŁU ---
         { id: "Mecz73", group: "1/16", t1: "RPA", t2: "Kanada", lock: R32_LOCK_TIME, score: "" },
         { id: "Mecz74", group: "1/16", t1: "Brazylia", t2: "Japonia", lock: R32_LOCK_TIME, score: "" },
         { id: "Mecz75", group: "1/16", t1: "Niemcy", t2: "Paragwaj", lock: R32_LOCK_TIME, score: "" },
@@ -308,24 +312,39 @@
         { id: "Mecz85", group: "1/16", t1: "Szwajcaria", t2: "Algieria", lock: R32_LOCK_TIME, score: "" },
         { id: "Mecz86", group: "1/16", t1: "Australia", t2: "Egipt", lock: R32_LOCK_TIME, score: "" },
         { id: "Mecz87", group: "1/16", t1: "Argentyna", t2: "Republika Zielonego Przylądka", lock: R32_LOCK_TIME, score: "" },
-        { id: "Mecz88", group: "1/16", t1: "Kolumbia", t2: "Ghana", lock: R32_LOCK_TIME, score: "" }
-    ];
+        { id: "Mecz88", group: "1/16", t1: "Kolumbia", t2: "Ghana", lock: R32_LOCK_TIME, score: "" },
 
-    // Szablony pod kolejne etapy
-    for(let i = 89; i <= 96; i++) {
-        allMatches.push({ id: `Mecz${i}`, group: "1/8", t1: "TBD", t2: "TBD", lock: "2026-07-05T18:00:00", score: "" });
-    }
-    for(let i = 97; i <= 100; i++) {
-        allMatches.push({ id: `Mecz${i}`, group: "1/4", t1: "TBD", t2: "TBD", lock: "2026-07-10T18:00:00", score: "" });
-    }
-    for(let i = 101; i <= 102; i++) {
-        allMatches.push({ id: `Mecz${i}`, group: "1/2", t1: "TBD", t2: "TBD", lock: "2026-07-14T21:00:00", score: "" });
-    }
-    allMatches.push({ id: "Mecz103", group: "FINALE", t1: "TBD", t2: "TBD", lock: "2026-07-18T21:00:00", score: "" }); 
-    allMatches.push({ id: "Mecz104", group: "FINALE", t1: "TBD", t2: "TBD", lock: "2026-07-19T21:00:00", score: "" });
+        // --- HARMONOGRAM FAZY 1/8 FINAŁU ---
+        { id: "Mecz89", group: "1/8", t1: "Zwycięzca RPA/Kanada", t2: "Zwycięzca Holandia/Maroko", lock: "2026-07-04T18:00:00", score: "", venue: "Houston" },
+        { id: "Mecz90", group: "1/8", t1: "Zwycięzca Niemcy/Paragwaj", t2: "Zwycięzca Francja/Szwecja", lock: "2026-07-04T22:00:00", score: "", venue: "Filadelfia" },
+        { id: "Mecz91", group: "1/8", t1: "Zwycięzca Brazylia/Japonia", t2: "Zwycięzca WKS/Norwegia", lock: "2026-07-05T19:00:00", score: "", venue: "East Rutherford" },
+        { id: "Mecz92", group: "1/8", t1: "Mecz 1/8 finału (zachód)", t2: "TBD", lock: "2026-07-05T23:00:00", score: "", venue: "Strefa Zachodnia" },
+        { id: "Mecz93", group: "1/8", t1: "Zwycięzca Meksyk/Ekwador", t2: "Zwycięzca Anglia/DR Konga", lock: "2026-07-06T01:00:00", score: "", venue: "Meksyk" },
+        { id: "Mecz94", group: "1/8", t1: "Zwycięzca Portugalia/Chorwacja", t2: "Zwycięzca Hiszpania/Austria", lock: "2026-07-06T20:00:00", score: "", venue: "Arlington" },
+        { id: "Mecz95", group: "1/8", t1: "Zwycięzca USA/Bośnia", t2: "Zwycięzca Belgia/Senegal", lock: "2026-07-07T01:00:00", score: "", venue: "Seattle" },
+        { id: "Mecz96", group: "1/8", t1: "Zwycięzca Argentyna/Zielony Przylądek", t2: "Zwycięzca Australia/Egipt", lock: "2026-07-07T17:00:00", score: "", venue: "Atlanta" },
+        { id: "Mecz96_2", group: "1/8", t1: "Zwycięzca Szwajcaria/Algieria", t2: "Zwycięzca Kolumbia/Ghana", lock: "2026-07-07T21:00:00", score: "", venue: "Vancouver" },
+
+        // --- ĆWIERĆFINAŁY ---
+        { id: "Mecz97", group: "1/4", t1: "Ćwierćfinał 1", t2: "TBD", lock: "2026-07-09T21:00:00", score: "", venue: "Boston" },
+        { id: "Mecz98", group: "1/4", t1: "Ćwierćfinał 2", t2: "TBD", lock: "2026-07-10T23:00:00", score: "", venue: "Los Angeles" },
+        { id: "Mecz99", group: "1/4", t1: "Ćwierćfinał 3", t2: "TBD", lock: "2026-07-11T19:00:00", score: "", venue: "Miami" },
+        { id: "Mecz100", group: "1/4", t1: "Ćwierćfinał 4", t2: "TBD", lock: "2026-07-11T23:00:00", score: "", venue: "Kansas City" },
+
+        // --- PÓŁFINAŁY ---
+        { id: "Mecz101", group: "1/2", t1: "Półfinał 1", t2: "TBD", lock: "2026-07-14T22:00:00", score: "", venue: "Dallas" },
+        { id: "Mecz102", group: "1/2", t1: "Półfinał 2", t2: "TBD", lock: "2026-07-15T22:00:00", score: "", venue: "Atlanta" },
+
+        // --- MECZ O 3. MIEJSCE ORAZ FINAŁ ---
+        { id: "Mecz103", group: "FINALE", t1: "Przegrany Półfinału 1", t2: "Przegrany Półfinału 2", lock: "2026-07-18T22:00:00", score: "", venue: "Miami (Mecz o 3. miejsce)" },
+        { id: "Mecz104", group: "FINALE", t1: "Zwycięzca Półfinału 1", t2: "Zwycięzca Półfinału 2", lock: "2026-07-19T21:00:00", score: "", venue: "MetLife Stadium (Wielki Finał)" }
+    ];
 
     function getFlagAnd3LetterCode(teamName) {
         if (!teamName) return "???";
+        if (teamName.startsWith("Zwycięzca") || teamName.startsWith("Mecz") || teamName.startsWith("Ćwierć") || teamName.startsWith("Pół") || teamName.startsWith("Przegrany")) {
+            return teamName;
+        }
         const flag = teamFlags[teamName] || "";
         return `${flag} ${teamName.substring(0, 3).toUpperCase()}`;
     }
@@ -408,17 +427,34 @@
     function renderProgressBar() {
         const bar = document.getElementById('steps-bar');
         bar.innerHTML = "";
+        
+        const isR32Done = isGroupSubmittedByPlayer("1/16");
+
         groupsOrder.forEach((g, idx) => {
             const span = document.createElement('span');
             const isDone = isGroupSubmittedByPlayer(g);
-            span.className = `progress-step ${idx === currentGroupIndex ? 'active' : ''}`;
-            span.innerText = isDone ? `${g} ✓` : g; 
-            span.onclick = () => changeGroup(idx);
+            
+            // Logika blokowania kliknięć w wyższe fazy
+            const isLockedWorkflow = (g !== "1/16" && !isR32Done);
+
+            if(isLockedWorkflow) {
+                span.className = `progress-step step-locked`;
+                span.innerText = g;
+                span.onclick = null; // wyłączenie interakcji
+            } else {
+                span.className = `progress-step ${idx === currentGroupIndex ? 'active' : ''}`;
+                span.innerText = isDone ? `${g} ✓` : g; 
+                span.onclick = () => changeGroup(idx);
+            }
             bar.appendChild(span);
         });
     }
 
     function changeGroup(targetIndex) {
+        const targetGroup = groupsOrder[targetIndex];
+        const isR32Done = isGroupSubmittedByPlayer("1/16");
+        if (targetGroup !== "1/16" && !isR32Done) return; // zabezpieczenie funkcyjne
+
         saveCurrentInputsToDraft();
         currentGroupIndex = targetIndex;
         renderProgressBar();
@@ -454,7 +490,6 @@
         const groupMatches = allMatches.filter(m => m.group === currentLetter);
         const isGroupPermanentlyLocked = isGroupSubmittedByPlayer(currentLetter);
 
-        // Wyznaczenie blokady wyższych rund: odblokowujemy tylko jeśli gracz skończył 1/16 LUB dana runda ma już swoje własne potwierdzenie
         const isPreviousStepDone = isGroupSubmittedByPlayer("1/16");
         const isRundeLockedByWorkflow = (currentLetter !== "1/16" && !isPreviousStepDone);
 
@@ -465,7 +500,6 @@
 
         groupMatches.forEach((match, index) => {
             const lockTime = new Date(match.lock);
-            // Mecz jest zablokowany, jeśli minął jego czas, runda została zatwierdzona LUB workflow blokuje rundę przed ukończeniem 1/16
             const isLocked = (now >= lockTime) || isGroupPermanentlyLocked || isRundeLockedByWorkflow;
 
             const div = document.createElement('div');
@@ -487,7 +521,8 @@
                 officialResultText = ` <b style="color:var(--primary)">[Wynik: ${match.score}]</b>`;
             }
 
-            let statusMessage = '⏰ Zamknięcie: ' + match.lock.replace('T', ' ').substring(0, 16);
+            let venueText = match.venue ? ` | 📍 ${match.venue}` : "";
+            let statusMessage = '⏰ Mecz: ' + match.lock.replace('T', ' ').substring(0, 16) + venueText;
             if (isRundeLockedByWorkflow) {
                 statusMessage = '<span class="locked-text">🔒 Zablokowane (Najpierw ukończ i zapisz 1/16)</span>';
             } else if (now >= lockTime) {
@@ -679,7 +714,6 @@
         const leaderboardBody = document.getElementById('leaderboard-body');
         const loggedInUser = localStorage.getItem('typerNick') || "";
         
-        // Filtrowanie meczów do nagłówka tabeli na podstawie wybranego przełącznika
         let filteredMatches = [];
         if (currentTableFilter === "grupowa") {
             filteredMatches = allMatches.filter(m => !["1/16", "1/8", "1/4", "1/2", "FINALE"].includes(m.group));
@@ -695,11 +729,12 @@
             const homeFormat = getFlagAnd3LetterCode(m.t1);
             const awayFormat = getFlagAnd3LetterCode(m.t2);
             const resultSub = m.score ? `<br><span style="color:#01c38d; font-size:10px;">(${m.score})</span>` : '';
+            
+            // Czysty, jednowierszowy nagłówek bez dopisków pucharowych i numerów meczów nad spodem
             trHead.innerHTML += `
                 <th>
-                    <div class="th-match-header" style="flex-direction:column;">
-                        <div style="font-size:9px; color:#8a99ad; margin-bottom:2px;">${m.group} / ${m.id.replace('Mecz', 'M')}</div>
-                        <div>${homeFormat}-${awayFormat}</div>
+                    <div class="th-match-header" style="flex-direction:column; padding: 4px 0;">
+                        <div>${homeFormat} - ${awayFormat}</div>
                         ${resultSub}
                     </div>
                 </th>`;
@@ -723,7 +758,6 @@
             const tr = document.createElement('tr');
             let rowHtml = `<td style="font-weight:bold; color:#01c38d; position:sticky; left:0; background:#131927; z-index:1;">${row.gracz}</td>`;
             
-            // Obliczamy punkty dla WSZYSTKICH meczów (niezależnie od filtra tabeli)
             allMatches.forEach(m => {
                 const matchKey = m.id.toLowerCase();
                 const playerPrediction = row[matchKey] || '-';
@@ -733,7 +767,6 @@
                 if (evaluation.type === "trend") countTrend++;
             });
 
-            // Generujemy komórki tylko dla meczów pasujących do AKTUALNEGO filtra tabeli
             filteredMatches.forEach(m => {
                 const matchKey = m.id.toLowerCase();
                 const playerPrediction = row[matchKey] || '-';
@@ -760,7 +793,6 @@
             playersLeaderboard.push({ name: row.gracz, points: totalPoints, exacts: countExact, trends: countTrend });
         });
 
-        // Generowanie Rankingu Ogólnego (zawsze zlicza sumę punktów ze wszystkich faz)
         playersLeaderboard.sort((a, b) => b.points !== a.points ? b.points - a.points : b.exacts - a.exacts);
         leaderboardBody.innerHTML = "";
         playersLeaderboard.forEach((player, index) => {
