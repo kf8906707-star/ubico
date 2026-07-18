@@ -20,7 +20,6 @@
         select { background: #2a3558; color: white; font-size: 14px; cursor: pointer; }
         button { background: var(--primary); color: var(--bg); font-weight: bold; cursor: pointer; font-size: 16px; }
         button:disabled { background: #4a5568; color: #a0aec0; cursor: not-allowed; box-shadow: none !important; }
-        button:hover:not(:disabled) { opacity: 0.9; }
         .hidden { display: none !important; }
         #loading-screen { text-align: center; padding: 40px 20px; }
         .spinner { border: 4px solid rgba(255,255,255,0.1); width: 42px; height: 42px; border-radius: 50%; border-left-color: var(--primary); animation: spin 1s linear infinite; margin: 20px auto; }
@@ -29,11 +28,8 @@
         .match-info { display: flex; flex-direction: column; width: 65%; }
         .match-teams { font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
         .match-date { font-size: 11px; color: #8a99ad; margin-top: 3px; }
-        .locked-text { color: var(--danger); font-weight: bold; }
-        .submitted-text { color: var(--primary); font-weight: bold; }
         .score-inputs { display: flex; gap: 8px; align-items: center; }
         .score-inputs input { width: 42px; text-align: center; margin: 0; padding: 6px; background: #2a3558; color: white; border: none; border-radius: 4px; font-size: 16px; }
-        .score-inputs input:disabled { background: #131927; color: #6c7a9c; cursor: not-allowed; }
         .scorers-section { margin-top: 20px; padding-top: 15px; border-top: 2px dashed #2a3558; }
         .scorer-row { display: flex; flex-direction: column; gap: 5px; margin-bottom: 15px; padding: 10px; background: #1a2238; border-radius: 6px; }
         .scorer-selects { display: flex; gap: 10px; }
@@ -43,19 +39,16 @@
         .table-container { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; min-width: 1000px; }
         th, td { padding: 12px 8px; text-align: center; border-bottom: 1px solid #2a3558; font-size: 12px; }
-        th { color: var(--primary); background: #1a2238; font-weight: 600; vertical-align: middle; }
-        .th-match-header { font-size: 12px; font-weight: bold; color: white; white-space: nowrap; min-width: 120px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 4px; }
+        th { color: var(--primary); background: #1a2238; font-weight: 600; }
         .cell-exact { background-color: #028a5a !important; color: white !important; font-weight: bold; } 
         .cell-trend { background-color: #b8860b !important; color: white !important; font-weight: bold; } 
         .cell-miss { background-color: #8b0000 !important; color: #ffcccc !important; } 
         .leaderboard-table { min-width: 100% !important; }
         .leaderboard-table th, .leaderboard-table td { padding: 10px; font-size: 14px; }
-        .leaderboard-row:nth-child(1) { background: rgba(255, 215, 0, 0.15); } 
         .rank-badge { font-weight: bold; display: inline-block; width: 24px; height: 24px; line-height: 24px; border-radius: 50%; background: #2a3558; color: white; text-align: center; font-size: 12px; }
         .progress-bar { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; background: #1a2238; padding: 8px; border-radius: 6px; margin-bottom: 15px; }
         .progress-step { color: #6c7a9c; background: #131927; cursor: pointer; padding: 10px 0; border-radius: 4px; text-align: center; font-size: 13px; font-weight: bold; }
         .progress-step.active { color: var(--bg); background: var(--primary); }
-        .progress-step.step-locked { color: #4a5568; background: #161c2e; cursor: not-allowed; opacity: 0.6; }
         .table-filter-bar { display: flex; gap: 10px; margin-bottom: 15px; }
         .filter-btn { flex: 1; background: #2a3558; color: #a0aec0; border: 2px solid transparent; padding: 10px; font-size: 13px; margin: 0; }
         .filter-btn.active { background: #1e2640; color: var(--primary); border-color: var(--primary); }
@@ -88,7 +81,6 @@
             <div id="group-title" class="group-header-active"></div>
             <div id="matches-list">Ładowanie meczów...</div>
             
-            <!-- SEKCJA STRZELCÓW Z PODZIAŁEM NA KRAJE I POZYCJE -->
             <div id="scorers-container" class="scorers-section hidden">
                 <h3 style="color: var(--primary); margin-bottom: 5px; text-align: center;">🎯 Wytypuj 4 strzelców bramek</h3>
                 <p style="font-size: 12px; color: #8a99ad; text-align: center; margin-top: 0;">Obrońca = 250 pkt | Pomocnik = 175 pkt | Napastnik = 100 pkt</p>
@@ -143,52 +135,45 @@
     let existingDatabaseRows = [];
     let currentTableFilter = "pucharowa"; 
 
-    // --- BAZA ZAWODNIKÓW CZWÓRKI FINALISTÓW ---
+    // --- PEŁNE OFICJALNE SKŁADY Z PODZIAŁEM NA POZYCJE (BEZ BRAMKARZY) ---
     const playersDatabase = {
         "Francja": [
-            { name: "Maignan (GK)", pos: "obronca" },
-            { name: "Saliba", pos: "obronca" }, { name: "Upamecano", pos: "obronca" }, { name: "Koundé", pos: "obronca" }, { name: "T. Hernandez", pos: "obronca" },
-            { name: "Tchouaméni", pos: "pomocnik" }, { name: "Camavinga", pos: "pomocnik" }, { name: "Rabiot", pos: "pomocnik" }, { name: "Zaïre-Emery", pos: "pomocnik" },
-            { name: "Mbappé", pos: "napastnik" }, { name: "Griezmann", pos: "napastnik" }, { name: "Dembélé", pos: "napastnik" }, { name: "Thuram", pos: "napastnik" }, { name: "Barcola", pos: "napastnik" }
+            { name: "William Saliba", pos: "obronca" }, { name: "Dayot Upamecano", pos: "obronca" }, { name: "Jules Kounde", pos: "obronca" }, { name: "Theo Hernandez", pos: "obronca" }, { name: "Ibrahima Konate", pos: "obronca" }, { name: "Jonathan Clauss", pos: "obronca" }, { name: "Benjamin Pavard", pos: "obronca" }, { name: "Ferland Mendy", pos: "obronca" },
+            { name: "Aurelien Tchouameni", pos: "pomocnik" }, { name: "Eduardo Camavinga", pos: "pomocnik" }, { name: "Adrien Rabiot", pos: "pomocnik" }, { name: "Warren Zaire-Emery", pos: "pomocnik" }, { name: "Youssouf Fofana", pos: "pomocnik" }, { name: "N'Golo Kante", pos: "pomocnik" },
+            { name: "Kylian Mbappe", pos: "napastnik" }, { name: "Antoine Griezmann", pos: "napastnik" }, { name: "Ousmane Dembele", pos: "napastnik" }, { name: "Marcus Thuram", pos: "napastnik" }, { name: "Bradley Barcola", pos: "napastnik" }, { name: "Olivier Giroud", pos: "napastnik" }, { name: "Kingsley Coman", pos: "napastnik" }, { name: "Randal Kolo Muani", pos: "napastnik" }
         ],
         "Anglia": [
-            { name: "Pickford (GK)", pos: "obronca" },
-            { name: "Stones", pos: "obronca" }, { name: "Walker", pos: "obronca" }, { name: "Guehi", pos: "obronca" }, { name: "Trippier", pos: "obronca" }, { name: "Shaw", pos: "obronca" },
-            { name: "Rice", pos: "pomocnik" }, { name: "Bellingham", pos: "pomocnik" }, { name: "Mainoo", pos: "pomocnik" }, { name: "Palmer", pos: "pomocnik" }, { name: "Gallagher", pos: "pomocnik" },
-            { name: "Kane", pos: "napastnik" }, { name: "Saka", pos: "napastnik" }, { name: "Foden", pos: "napastnik" }, { name: "Watkins", pos: "napastnik" }, { name: "Gordon", pos: "napastnik" }
+            { name: "John Stones", pos: "obronca" }, { name: "Kyle Walker", pos: "obronca" }, { name: "Marc Guehi", pos: "obronca" }, { name: "Kieran Trippier", pos: "obronca" }, { name: "Luke Shaw", pos: "obronca" }, { name: "Ezri Konsa", pos: "obronca" }, { name: "Joe Gomez", pos: "obronca" }, { name: "Lewis Dunk", pos: "obronca" },
+            { name: "Declan Rice", pos: "pomocnik" }, { name: "Jude Bellingham", pos: "pomocnik" }, { name: "Kobbie Mainoo", pos: "pomocnik" }, { name: "Cole Palmer", pos: "pomocnik" }, { name: "Conor Gallagher", pos: "pomocnik" }, { name: "Trent Alexander-Arnold", pos: "pomocnik" }, { name: "Adam Wharton", pos: "pomocnik" },
+            { name: "Harry Kane", pos: "napastnik" }, { name: "Bukayo Saka", pos: "napastnik" }, { name: "Phil Foden", pos: "napastnik" }, { name: "Ollie Watkins", pos: "napastnik" }, { name: "Anthony Gordon", pos: "napastnik" }, { name: "Ivan Toney", pos: "napastnik" }, { name: "Jarrod Bowen", pos: "napastnik" }
         ],
         "Hiszpania": [
-            { name: "Simón (GK)", pos: "obronca" },
-            { name: "Laporte", pos: "obronca" }, { name: "Le Normand", pos: "obronca" }, { name: "Carvajal", pos: "obronca" }, { name: "Cucurella", pos: "obronca" }, { name: "Vivian", pos: "obronca" },
-            { name: "Rodri", pos: "pomocnik" }, { name: "Pedri", pos: "pomocnik" }, { name: "Olmo", pos: "pomocnik" }, { name: "Ruiz", pos: "pomocnik" }, { name: "Merino", pos: "pomocnik" },
-            { name: "Yamal", pos: "napastnik" }, { name: "Williams", pos: "napastnik" }, { name: "Morata", pos: "napastnik" }, { name: "Oyarzabal", pos: "napastnik" }, { name: "Torres", pos: "napastnik" }
+            { name: "Aymeric Laporte", pos: "obronca" }, { name: "Robin Le Normand", pos: "obronca" }, { name: "Dani Carvajal", pos: "obronca" }, { name: "Marc Cucurella", pos: "obronca" }, { name: "Dani Vivian", pos: "obronca" }, { name: "Alejandro Grimaldo", pos: "obronca" }, { name: "Jesus Navas", pos: "obronca" }, { name: "Nacho Fernandez", pos: "obronca" },
+            { name: "Rodri", pos: "pomocnik" }, { name: "Pedri", pos: "pomocnik" }, { name: "Dani Olmo", pos: "pomocnik" }, { name: "Fabian Ruiz", pos: "pomocnik" }, { name: "Mikel Merino", pos: "pomocnik" }, { name: "Martin Zubimendi", pos: "pomocnik" }, { name: "Alex Baena", pos: "pomocnik" }, { name: "Fermin Lopez", pos: "pomocnik" },
+            { name: "Lamine Yamal", pos: "napastnik" }, { name: "Nico Williams", pos: "napastnik" }, { name: "Alvaro Morata", pos: "napastnik" }, { name: "Mikel Oyarzabal", pos: "napastnik" }, { name: "Ferran Torres", pos: "napastnik" }, { name: "Joselu", pos: "napastnik" }, { name: "Ayoze Perez", pos: "napastnik" }
         ],
         "Argentyna": [
-            { name: "Martínez (GK)", pos: "obronca" },
-            { name: "Romero", pos: "obronca" }, { name: "Otamendi", pos: "obronca" }, { name: "Molina", pos: "obronca" }, { name: "Tagliafico", pos: "obronca" }, { name: "Lisandro Martínez", pos: "obronca" },
-            { name: "De Paul", pos: "pomocnik" }, { name: "Mac Allister", pos: "pomocnik" }, { name: "Enzo Fernández", pos: "pomocnik" }, { name: "Lo Celso", pos: "pomocnik" },
-            { name: "Messi", pos: "napastnik" }, { name: "Álvarez", pos: "napastnik" }, { name: "Lautaro Martínez", pos: "napastnik" }, { name: "Di María", pos: "napastnik" }, { name: "Nico González", pos: "napastnik" }
+            { name: "Cristian Romero", pos: "obronca" }, { name: "Nicolas Otamendi", pos: "obronca" }, { name: "Nahuel Molina", pos: "obronca" }, { name: "Nicolas Tagliafico", pos: "obronca" }, { name: "Lisandro Martinez", pos: "obronca" }, { name: "Gonzalo Montiel", pos: "obronca" }, { name: "Marcos Acuna", pos: "obronca" }, { name: "Lucas Martinez Quarta", pos: "obronca" }, { name: "Germán Pezzella", pos: "obronca" },
+            { name: "Rodrigo De Paul", pos: "pomocnik" }, { name: "Alexis Mac Allister", pos: "pomocnik" }, { name: "Enzo Fernandez", pos: "pomocnik" }, { name: "Giovani Lo Celso", pos: "pomocnik" }, { name: "Leandro Paredes", pos: "pomocnik" }, { name: "Exequiel Palacios", pos: "pomocnik" }, { name: "Guido Rodriguez", pos: "pomocnik" },
+            { name: "Lionel Messi", pos: "napastnik" }, { name: "Julian Alvarez", pos: "napastnik" }, { name: "Lautaro Martinez", pos: "napastnik" }, { name: "Angel Di Maria", pos: "napastnik" }, { name: "Nicolas Gonzalez", pos: "napastnik" }, { name: "Alejandro Garnacho", pos: "napastnik" }, { name: "Valentin Carboni", pos: "napastnik" }
         ]
     };
 
-    const teamFlags = { "Meksyk": "🇲🇽", "RPA": "🇿🇦", "Korea Płd.": "🇰🇷", "Czechy": "🇨🇿", "Kanada": "🇨🇦", "Bośnia i Herc.": "🇧🇦", "Katar": "🇶🇦", "Szwajcaria": "🇨🇭", "Brazylia": "🇧🇷", "Maroko": "🇲🇦", "Haiti": "🇭🇹", "Szkocja": "🏴󠁧󠁢󠁳󠁣󠁴󠁿", "USA": "🇺🇸", "Paragwaj": "🇵🇾", "Australia": "🇦🇺", "Turcja": "🇹🇷", "Niemcy": "🇩🇪", "Curacao": "🇨🇼", "WKS": "🇨🇮", "Ekwador": "🇪🇨", "Holandia": "🇳🇱", "Japonia": "🇯🇵", "Szwecja": "🇸🇪", "Tunezja": "🇹🇳", "Belgia": "🇧🇪", "Egipt": "🇪🇬", "Iran": "🇮🇷", "Nowa Zelandia": "🇳🇿", "Hiszpania": "🇪🇸", "Rep. Ziel. Przyl.": "🇨🇻", "Arabia Saud.": "🇸🇦", "Urugwaj": "🇺🇾", "Francja": "🇫🇷", "Senegal": "🇸🇳", "Irak": "🇮🇶", "Norwegia": "🇳🇴", "Argentyna": "🇦🇷", "Algieria": "🇩🇿", "Austria": "🇦🇹", "Jordania": "🇯🇴", "Portugalia": "🇵🇹", "DR Kongo": "🇨🇩", "Uzbekistan": "🇺🇿", "Kolumbia": "🇨🇴", "Anglia": "🏴󠁧󠁢󠁥󠁮󠁧󠁿", "Chorwacja": "🇭🇷", "Ghana": "🇬🇭", "Panama": "🇵🇦" };
-    const R32_LOCK_TIME = "2026-06-28T21:00:00";
+    const teamFlags = { "Francja": "🇫🇷", "Anglia": "🏴󠁧󠁢󠁥󠁮󠁧󠁿", "Hiszpania": "🇪🇸", "Argentyna": "🇦🇷" };
 
     const allMatches = [
-        // Faza grupowa oraz pucharowe (skrócone na potrzeby czytelności kodu w oknie)
+        // Dodaj tutaj swoje archiwalne mecze grupowe i pucharowe w identycznym formacie, jeśli chcesz, by wyświetlały się w tabeli.
         { id: "Mecz103", group: "FINALE", t1: "Francja", t2: "Anglia", lock: "2026-07-18T22:00:00", score: "", venue: "Mecz o 3. miejsce" },
         { id: "Mecz104", group: "FINALE", t1: "Hiszpania", t2: "Argentyna", lock: "2026-07-19T21:00:00", score: "", venue: "Wielki Finał" }
     ];
 
-    function isPreviousStageFinished(groupName) { return true; }
-    function getActivePredictionGroupIndex() { return 4; }
     function getFlagAnd3LetterCode(t) { return t ? `${teamFlags[t]||''} ${t.substring(0,3).toUpperCase()}` : '❓'; }
     function refreshTwemoji() { if (window.twemoji) twemoji.parse(document.body, { folder: 'svg', ext: '.svg' }); }
     function isGroupSubmittedByPlayer(g) { const n = localStorage.getItem('typerNick') || ""; return localStorage.getItem(`submitted_group_${g.toLowerCase()}_${n.toLowerCase()}`) === "true"; }
 
     async function initApp() {
         await loadAllScores();
-        currentGroupIndex = getActivePredictionGroupIndex();
+        currentGroupIndex = 4; 
         document.getElementById('loading-screen').classList.add('hidden');
         const savedNick = localStorage.getItem('typerNick');
         if (savedNick) showApp(savedNick); else document.getElementById('login-screen').classList.remove('hidden');
@@ -363,7 +348,7 @@
     async function loadAllScores() { const r = await fetch(API_URL); const d = await r.json(); existingDatabaseRows = d[KEY_NAME] || []; buildGlobalTableUI(); }
 
     function evaluatePrediction(pred, off, grp) {
-        if (!off || !pred || pred === "-" || !pred.includes(":")) return { points: 0, type: "none" };
+        if (!off || !pred || pred === "-" || !pred.includes(":")) return { points: 0, type: "none", cssClass: "" };
         if (pred.trim() === off.trim()) return { points: grp==="FINALE"?270:180, type: "exact", cssClass:"cell-exact" };
         const [pH, pA] = pred.split(":").map(Number), [oH, oA] = off.split(":").map(Number);
         if ((pH>pA && oH>oA) || (pH<pA && oH<oA) || (pH===pA && oH===oA)) return { points: grp==="FINALE"?180:120, type: "trend", cssClass:"cell-trend" };
@@ -371,28 +356,52 @@
     }
 
     function buildGlobalTableUI() {
-        const tbody = document.getElementById('table-body'), lbody = document.getElementById('leaderboard-body');
-        tbody.innerHTML = ""; lbody.innerHTML = "";
+        const thead = document.getElementById('table-head');
+        const tbody = document.getElementById('table-body');
+        const lbody = document.getElementById('leaderboard-body');
+        
+        thead.innerHTML = ""; tbody.innerHTML = ""; lbody.innerHTML = "";
+        
+        let filteredMatches = [];
+        if (currentTableFilter === "grupowa") {
+            filteredMatches = allMatches.filter(m => !["1/16", "1/8", "1/4", "1/2", "FINALE"].includes(m.group));
+        } else {
+            filteredMatches = allMatches.filter(m => ["1/16", "1/8", "1/4", "1/2", "FINALE"].includes(m.group));
+        }
+
+        // Generowanie nagłówków tabeli
+        const trHead = document.createElement('tr');
+        trHead.innerHTML = "<th style='position:sticky; left:0; background:#1a2238; z-index:3;'>Gracz</th>";
+        filteredMatches.forEach(m => {
+            const resSub = m.score ? `<br><span style="color:#01c38d; font-size:10px;">(${m.score})</span>` : '';
+            trHead.innerHTML += `<th><div class="th-match-header">${getFlagAnd3LetterCode(m.t1)} - ${getFlagAnd3LetterCode(m.t2)}${resSub}</div></th>`;
+        });
+        thead.appendChild(trHead);
+
         let leaderboard = [];
 
         existingDatabaseRows.forEach(row => {
-            let pts = 0, exacts = 0, trends = 0;
+            if (!row.gracz) return;
+            let pts = 0;
+            
+            // Punkty za mecze
             allMatches.forEach(m => {
                 const eval = evaluatePrediction(row[m.id.toLowerCase()], m.score, m.group);
-                pts += eval.points; if(eval.type==='exact') exacts++; if(eval.type==='trend') trends++;
+                pts += eval.points;
             });
 
             // =========================================================================
             //  TUTAJ WPISUJESZ OFICJALNYCH STRZELCÓW PO MECZU, ABY NALICZYŁO PUNKTY!
             // =========================================================================
             const officialScorers = [
-                "Mbappé", 
-                "Kane",
-                "Yamal"
+                "Kylian Mbappe", 
+                "Harry Kane",
+                "Dani Olmo"
             ]; 
             // =========================================================================
 
-            for(let i=1; i<=4; i++) {
+            // Liczenie punktów za strzelców
+            for(let i = 1; i <= 4; i++) {
                 const pName = row[`strzelec${i}`], cName = row[`kraj${i}`];
                 if(pName && officialScorers.includes(pName)) {
                     const db = playersDatabase[cName] || [];
@@ -404,12 +413,31 @@
                     }
                 }
             }
-            leaderboard.push({ name: row.gracz, points: pts, exacts, trends });
+
+            // Renderowanie wiersza w tabeli szczegółowej
+            const tr = document.createElement('tr');
+            let rowHtml = `<td style="font-weight:bold; color:#01c38d; position:sticky; left:0; background:#131927; z-index:1;">${row.gracz}</td>`;
+            filteredMatches.forEach(m => {
+                const pred = row[m.id.toLowerCase()] || '-';
+                const eval = evaluatePrediction(pred, m.score, m.group);
+                rowHtml += `<td class="${eval.cssClass || ''}">${pred}</td>`;
+            });
+            tr.innerHTML = rowHtml;
+            tbody.appendChild(tr);
+
+            leaderboard.push({ name: row.gracz, points: pts });
         });
 
+        // Sortowanie i generowanie rankingu generalnego
         leaderboard.sort((a,b) => b.points - a.points).forEach((p, idx) => {
-            lbody.innerHTML += `<tr class="leaderboard-row"><td><span class="rank-badge">${idx+1}</span></td><td style="text-align:left; padding-left:15px;">${p.name}</td><td style="font-weight:bold; color:var(--primary);">${p.points} pkt</td></tr>`;
+            lbody.innerHTML += `
+                <tr class="leaderboard-row">
+                    <td><span class="rank-badge">${idx+1}</span></td>
+                    <td style="text-align:left; padding-left:15px; font-weight:bold; color:#fff;">${p.name}</td>
+                    <td style="font-weight:bold; color:var(--primary); font-size:15px;">${p.points} pkt</td>
+                </tr>`;
         });
+        refreshTwemoji();
     }
 </script>
 </body>
